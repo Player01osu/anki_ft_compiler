@@ -86,10 +86,3 @@ let default_card = Cloze;
   Syntax highlighting (TODO)
 
   Neovim Plugin (TODO)
-
-# Technicals
-
-## Compilation Process
-
-   Source Code -> Lexical Analyzer -> Syntax Analyzer -> Semantic Analyzer ->
-   cards_.txt
