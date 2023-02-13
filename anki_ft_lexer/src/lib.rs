@@ -213,13 +213,13 @@ impl<'a> Cursor<'a> {
         self.chars.clone().nth(n).unwrap_or('\0')
     }
 
-    fn peak_n_collect(&self, mut n: usize) -> String {
-        let mut str = String::with_capacity(n);
+    fn peak_n_collect(&mut self, mut n: usize) -> String {
+        self.buf.clear();
         loop {
-            str.push(self.peak_n(n - 1));
+            self.buf.push(self.peak_n(n - 1));
             n -= 1;
             if n == 0 {
-                return str.chars().rev().collect();
+                return self.buf.chars().rev().collect();
             }
         }
     }
