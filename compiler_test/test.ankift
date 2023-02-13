@@ -1,4 +1,8 @@
 -- Double hyphens serve as single line comments
+#[]
+{
+"literal"; "lmao";"";"\""
+}
 let default_card = Basic;
 let deck = example_deck;
 let default_tags = Cool_Tags;

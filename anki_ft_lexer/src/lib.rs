@@ -41,8 +41,17 @@ pub enum Symbol {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LiteralKind {
+    String { terminated: bool },
+    // TODO
+    Num,
+    Bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TokenKind {
     Ident(Symbol),
+    Literal(LiteralKind),
     LineComment,
     BlockComment { terminated: bool },
 
@@ -111,6 +120,13 @@ fn is_whitespace(c: char) -> bool {
     }
 }
 
+fn is_string_literal(c: char) -> bool {
+    match c {
+        '\'' | '"' => true,
+        _ => false,
+    }
+}
+
 fn is_kw(str: &str) -> bool {
     match str {
         "let" => true,
@@ -168,6 +184,10 @@ impl<'a> Cursor<'a> {
             '-' if is_line_comment(self.peak_first()) => self.consume_line_comment(),
 
             c if is_whitespace(c) => self.consume_whitespace(),
+
+            c if is_string_literal(c) => self.consume_string_literal(c),
+            // TODO
+            //c if is_literal(c) => self.consume_literal(c),
             ',' => TokenKind::Comma,
             ';' => TokenKind::Semi,
             ':' => TokenKind::Colon,
@@ -318,6 +338,29 @@ impl<'a> Cursor<'a> {
         }
 
         TokenKind::Ident(Symbol::Other)
+    }
+
+    fn consume_string_literal(&mut self, literal_char: char) -> TokenKind {
+        let kind = loop {
+            let c = match self.chars.next() {
+                Some(c) => c,
+                None => return TokenKind::Literal(LiteralKind::String { terminated: false }),
+            };
+
+            match c {
+                // Escaped
+                '\\' => {
+                    if self.peak_first() == literal_char {
+                        self.chars.next();
+                    }
+                }
+                c if c == literal_char => {
+                    break LiteralKind::String { terminated: true };
+                }
+                _ => (),
+            }
+        };
+        TokenKind::Literal(kind)
     }
 
     fn consume_whitespace(&mut self) -> TokenKind {
