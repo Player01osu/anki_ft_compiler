@@ -1,6 +1,8 @@
 [workspace]
 members = [
+    "compiler_test",
     "anki_ft_lexer",
     "anki_ft_parse",
     "anki_ft_ast",
+    "anki_ftc",
 ]
