@@ -316,7 +316,8 @@ impl<'a> Cursor<'a> {
     fn consume_ident(&mut self) -> TokenKind {
         loop {
             // FIXME ??????
-            if is_whitespace(self.peak_first()) || is_end_of_ident(self.peak_first()) {
+            let peak_first = self.peak_first();
+            if is_whitespace(peak_first) || is_end_of_ident(peak_first) {
                 let next_non_white = self
                     .chars
                     .clone()
