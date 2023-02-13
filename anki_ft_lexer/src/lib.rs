@@ -250,12 +250,8 @@ impl<'a> Cursor<'a> {
                 "-" if c == '-' => state.push('-'),
                 "--" if c == ']' => state.push(']'),
                 "--]" if c == ']' => state.push(']'),
-                _ if c == '-' => {
-                    state.push('-');
-                }
-                _ => {
-                    state.clear();
-                }
+                _ if c == '-' => state.push('-'),
+                _ => state.clear(),
             }
         }
 
