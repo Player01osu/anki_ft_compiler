@@ -9,69 +9,69 @@
 # Syntax
 
 ```
-    -- Double hyphens serve as single line comments
-    let default_card = Basic;
-    let deck = example_deck;
-    let default_tags = Cool_Tags;
+-- Double hyphens serve as single line comments
+let default_card = Basic;
+let deck = example_deck;
+let default_tags = Cool_Tags;
 
-    --[[
-    And block comments are done with double hyphens followed by double brackets.
-    --]]
+--[[
+And block comments are done with double hyphens followed by double brackets.
+--]]
 
-    #[Basic]
-    {
-        This is an example of a basic card type; It also has a field for the back;
-        You_Can_Put_Tags Here As_well
-    }
+#[Basic]
+{
+    This is an example of a basic card type; It also has a field for the back;
+    You_Can_Put_Tags Here As_well
+}
 
-    #[Cloze]
-    {
-        Clozes work in a similar way {c1:Word}; The back can be filled;
-    }
+#[Cloze]
+{
+    Clozes work in a similar way {c1:Word}; The back can be filled;
+}
 
-    #[Cloze]
-    {
-        or empty {c1:Word};;
-    }
+#[Cloze]
+{
+    or empty {c1:Word};;
+}
 
-    #[Basic_Reverse]
-    {
-        White space and newlines are
-        handled
+#[Basic_Reverse]
+{
+    White space and newlines are
+    handled
 
-        correctly; And work
+    correctly; And work
 
-        as expected;
-    }
+    as expected;
+}
 
-    #[]
-    {
-        Default card types are available through empty `#[]`;;
-    }
+#[]
+{
+    Default card types are available through empty `#[]`;;
+}
 
-    #[Four_Field_Card_Type]
-    {
-        Multiple fields are handled as expected;
-        Field two;
-        Field three;
-        Field four;
-        Tags Also_newlines_after_semi-colons_are_removed_at_compile_time
-    }
+#[Four_Field_Card_Type]
+{
+    Multiple fields are handled as expected;
+    Field two;
+    Field three;
+    Field four;
+    Tags Also_newlines_after_semi-colons_are_removed_at_compile_time
+}
 
-    #[]
-    {
-        You can overwrite tags as well
-        ; Default tags will not be applied
-        <;> Tag_one
-    }
+#[]
+{
+    You can overwrite tags as well
+    ; Default tags will not be applied
+    <;> Tag_one
+}
 
-    let default_card = Cloze;
+let default_card = Cloze;
 
-    #[]
-    {
-        Variables are defined {c1:procedurally}; Meaning values can be redefined in
-        later parts of the file;
-    }
+#[]
+{
+    Variables are defined {c1:procedurally}; Meaning values can be redefined in
+    later parts of the file;
+}
 ```
 
 # Features
