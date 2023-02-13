@@ -9,49 +9,69 @@
 # Syntax
 
 ```
-  default_card = Basic;
-  deck = example_deck;
-  default_tags = Cool_Tags;
+    -- Double hyphens serve as single line comments
+    let default_card = Basic;
+    let deck = example_deck;
+    let default_tags = Cool_Tags;
 
-  #[Basic]
-  This is an example of a basic card type; It also has a field for the back;
-  You_Can_Put_Tags Here As_well
+    --[[
+    And block comments are done with double hyphens followed by double brackets.
+    --]]
 
-  #[Cloze]
-  Clozes work in a similar way {c1:Word}; The back can be filled;
+    #[Basic]
+    {
+        This is an example of a basic card type; It also has a field for the back;
+        You_Can_Put_Tags Here As_well
+    }
 
-  #[Cloze]
-  or empty {c1:Word};;
+    #[Cloze]
+    {
+        Clozes work in a similar way {c1:Word}; The back can be filled;
+    }
 
-  #[Basic_Reverse]
-  White space and newlines are
-  handled
+    #[Cloze]
+    {
+        or empty {c1:Word};;
+    }
 
-  correctly; And work
+    #[Basic_Reverse]
+    {
+        White space and newlines are
+        handled
 
-  as expected;
+        correctly; And work
 
-  #[]
-  Default card types are available through empty `#[]`;;
+        as expected;
+    }
 
-  #[Four_Field_Card_Type]
-  Multiple fields are handled as expected;
-  Field two;
-  Field three;
-  Field four;
-  Tags Also_newlines_after_semi-colons_are_removed_at_compile_time
+    #[]
+    {
+        Default card types are available through empty `#[]`;;
+    }
 
-  #[]
-  You can overwrite tags as well
-  ; Default tags will not be applied
-  <;> Tag_one
+    #[Four_Field_Card_Type]
+    {
+        Multiple fields are handled as expected;
+        Field two;
+        Field three;
+        Field four;
+        Tags Also_newlines_after_semi-colons_are_removed_at_compile_time
+    }
 
-  default_card = Cloze;
+    #[]
+    {
+        You can overwrite tags as well
+        ; Default tags will not be applied
+        <;> Tag_one
+    }
 
-  #[]
-  Variables are defined {c1:procedurally}; Meaning values can be redefined in
-  later parts of the file;
+    let default_card = Cloze;
 
+    #[]
+    {
+        Variables are defined {c1:procedurally}; Meaning values can be redefined in
+        later parts of the file;
+    }
 ```
 
 # Features
