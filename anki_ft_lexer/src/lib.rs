@@ -1,9 +1,9 @@
 use std::str::{Chars, FromStr};
 
 pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
-    let mut string_reader = StringReader::new(src);
+    let mut cursor = Cursor::new(src);
     std::iter::from_fn(move || {
-        let token = string_reader.next_token();
+        let token = cursor.advance_token();
         if token.kind != TokenKind::EOF {
             Some(token)
         } else {
