@@ -151,7 +151,7 @@ fn is_block_comment(str: String) -> bool {
 
 fn is_end_of_ident(c: char) -> bool {
     match c {
-        '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' => true,
+        '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' | ':' => true,
         _ => false,
     }
 }
@@ -226,6 +226,7 @@ impl<'a> Cursor<'a> {
         self.chars.clone().nth(n).unwrap_or('\0')
     }
 
+    // TODO could compare buf directly
     fn peak_n_collect(&mut self, mut n: usize) -> String {
         self.buf.clear();
         loop {
