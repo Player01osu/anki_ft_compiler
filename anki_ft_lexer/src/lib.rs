@@ -15,7 +15,7 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
 #[derive(Clone, Debug)]
 pub struct Token {
     kind: TokenKind,
-    len: usize,
+    pub len: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -91,13 +91,6 @@ pub struct Cursor<'a> {
     chars: Chars<'a>,
 }
 
-#[derive(Debug)]
-pub struct StringReader<'a> {
-    start_pos: usize,
-    pos: usize,
-    cursor: Cursor<'a>,
-}
-
 impl Token {
     fn new(kind: TokenKind, len: usize) -> Self {
         Self { kind, len }
@@ -164,7 +157,7 @@ fn is_end_of_ident(c: char) -> bool {
 }
 
 impl<'a> Cursor<'a> {
-    fn new(src: &'a str) -> Self {
+    pub fn new(src: &'a str) -> Self {
         Self {
             len_remaining: src.len(),
             chars: src.chars(),
@@ -172,7 +165,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    fn advance_token(&mut self) -> Token {
+    pub fn advance_token(&mut self) -> Token {
         let first_char = match self.chars.next() {
             Some(c) => c,
             None => {
@@ -367,26 +360,5 @@ impl<'a> Cursor<'a> {
     fn consume_whitespace(&mut self) -> TokenKind {
         self.consume_while(|c| is_whitespace(*c));
         TokenKind::Whitespace
-    }
-}
-
-impl<'a> StringReader<'a> {
-    pub fn new(src: &'a str) -> Self {
-        Self {
-            start_pos: 0,
-            pos: 0,
-            cursor: Cursor::new(src),
-        }
-    }
-
-    pub fn next_token(&mut self) -> Token {
-        let token = self.cursor.advance_token();
-        self.offset(token.len);
-
-        token
-    }
-
-    fn offset(&mut self, offset: usize) {
-        self.pos += offset;
     }
 }
