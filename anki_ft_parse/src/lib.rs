@@ -330,11 +330,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn next_token(&mut self) -> TokenMeta {
+        cook_lexer_token(self.string_reader.next_token())
+    }
+
     pub fn parse_tokens(&mut self) -> Result<(), ParseError> {
         use TokenKind::*;
 
         loop {
-            let token = cook_lexer_token(self.string_reader.next_token());
+            let token = self.next_token();
             //dbg!(&token);
 
             match token.kind() {
@@ -405,7 +409,7 @@ impl<'a> Parser<'a> {
 
     fn next_non_whitespace(&mut self) -> TokenMeta {
         loop {
-            let token = cook_lexer_token(self.string_reader.next_token());
+            let token = self.next_token();
             if token.kind() != TokenKind::Whitespace {
                 return token;
             }
@@ -447,7 +451,7 @@ impl<'a> Parser<'a> {
                 _ => (),
             }
 
-            let token = cook_lexer_token(self.string_reader.next_token());
+            let token = self.next_token();
             match token.kind() {
                 TokenKind::Semi => break Some(token),
                 _ => continue,
@@ -557,7 +561,7 @@ impl<'a> Parser<'a> {
     }
 
     fn next_expect(&mut self, kind: TokenKind) -> Result<TokenMeta, ParseError> {
-        let token = cook_lexer_token(self.string_reader.next_token());
+        let token = self.next_token();
         match token.kind() {
             t if t == kind => Result::Ok(token),
             t => Result::Err(ParseError::Expected {
