@@ -32,7 +32,7 @@ correctly; And work
 as expected;
 
 #[]
-Default card types are available through empty `#[]`;;
+Default card types are available through empty '#[]';;
 
 #[Four_Field_Card_Type]
 Multiple fields are handled as expected;

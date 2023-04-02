@@ -15,8 +15,10 @@ pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
 #[derive(Clone, Debug)]
 pub struct Token {
     kind: TokenKind,
+    pub text: TokenText,
     pub len: usize,
 }
+
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KW {
@@ -86,16 +88,24 @@ pub enum Delimiter {
     AngleBracket,
 }
 
+#[derive(Debug, Default, Clone)]
+pub enum TokenText {
+    Text(String),
+    #[default]
+    Empty,
+}
+
 #[derive(Debug, Clone)]
 pub struct Cursor<'a> {
+    src: &'a str,
     buf: String,
     len_remaining: usize,
     chars: Chars<'a>,
 }
 
 impl Token {
-    fn new(kind: TokenKind, len: usize) -> Self {
-        Self { kind, len }
+    fn new(kind: TokenKind, text: TokenText, len: usize) -> Self {
+        Self { kind, text, len }
     }
 }
 
@@ -103,6 +113,7 @@ impl Default for Token {
     fn default() -> Self {
         Self {
             len: 0,
+            text: Default::default(),
             kind: TokenKind::DummyToken,
         }
     }
@@ -145,6 +156,7 @@ fn is_end_of_ident(c: char) -> bool {
 impl<'a> Cursor<'a> {
     pub fn new(src: &'a str) -> Self {
         Self {
+            src,
             len_remaining: src.len(),
             chars: src.chars(),
             buf: String::new(),
@@ -155,7 +167,7 @@ impl<'a> Cursor<'a> {
         let first_char = match self.chars.next() {
             Some(c) => c,
             None => {
-                return Token::new(TokenKind::EOF, 0);
+                return Token::new(TokenKind::EOF, TokenText::Empty, 0);
             }
         };
         let token_kind = match first_char {
@@ -195,10 +207,35 @@ impl<'a> Cursor<'a> {
                 self.consume_ident()
             } //_ => TokenKind::Unknown,
         };
-        let token = Token::new(token_kind, self.pos_within_token());
+
+        #[allow(unused)]
+        fn token_text_(src: &str, start: usize, end: usize) -> &str {
+            let src_slice = &src[start..end];
+            let slice = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(src.as_ptr(), src_slice.len()))};
+            slice
+        }
+
+        fn token_text(src: &str, start: usize, end: usize) -> TokenText {
+            // TODO This should be a reference into the src slice.
+            // I don't feel like pulling my hair out trying to get around the borrow rules.
+            //
+            // A reference into src should always be valid since src is immutable and lives for the
+            // entire duration of parse.
+            //let slice = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(src.as_ptr(), src_slice.len()))};
+            let slice = src[start..end].to_owned();
+
+            TokenText::Text(slice)
+        }
+
+        let start = self.src.len() - self.len_remaining;
+        let end = start + self.pos_within_token();
+        let text = token_text(self.src, start, end);
+
+        let token = Token::new(token_kind, text, self.pos_within_token());
         self.reset_pos_within_token();
         token
     }
+
 
     fn peak_first(&self) -> char {
         match self.chars.clone().next() {

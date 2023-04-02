@@ -11,6 +11,7 @@ use anki_ft_lexer::Delimiter;
 use anki_ft_lexer::Delimiter::*;
 use anki_ft_lexer::Token as LexerToken;
 use anki_ft_lexer::TokenKind as LexerTokenKind;
+use anki_ft_lexer::TokenText;
 use anki_ft_lexer::KW;
 
 /*
@@ -65,10 +66,29 @@ pub enum TokenKind {
 }
 
 #[derive(Debug)]
-pub struct TokenMeta {
+pub struct Token {
     pub kind: TokenKind,
+    pub text: TokenText,
     pub span: Span,
 }
+
+#[derive(Debug)]
+pub struct TokenOwned {
+    pub kind: TokenKind,
+    pub text: String,
+    pub span: Span,
+}
+
+//impl ToOwned for TokenMeta {
+//    type Owned = TokenOwned;
+//    fn to_owned(&self) -> Self::Owned {
+//        TokenOwned {
+//            kind: self.kind,
+//            span: self.span,
+//            text:
+//        }
+//    }
+//}
 
 fn token_kind_from_close_delim(delim: Delimiter) -> TokenKind {
     match delim {
@@ -88,100 +108,119 @@ fn token_kind_from_open_delim(delim: Delimiter) -> TokenKind {
     }
 }
 
-impl TokenMeta {
+impl Token {
     pub fn new(lexer_token: LexerToken) -> Self {
         use anki_ft_lexer::TokenKind::*;
         match lexer_token.kind() {
             Ident(symbol) => match symbol {
                 anki_ft_lexer::Symbol::KW(_) => Self {
                     kind: TokenKind::KeyWord,
+                    text: lexer_token.text,
                     span: Span::default(),
                 },
                 _ => Self {
                     kind: TokenKind::Ident,
+                    text: lexer_token.text,
                     span: Span::default(),
                 },
             },
             Literal(kind) => Self {
                 kind: TokenKind::Literal,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             LineComment => Self {
                 kind: TokenKind::LineComment,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             BlockComment { terminated } => Self {
                 kind: TokenKind::BlockComment,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Comma => Self {
                 kind: TokenKind::Comma,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Semi => Self {
                 kind: TokenKind::Semi,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Colon => Self {
                 kind: TokenKind::Colon,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Hyphen => Self {
                 kind: TokenKind::Hyphen,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Pound => Self {
                 kind: TokenKind::Pound,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Dollar => Self {
                 kind: TokenKind::Dollar,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Eq => Self {
                 kind: TokenKind::Eq,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             Whitespace => Self {
                 kind: TokenKind::Whitespace,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             EOF => Self {
                 kind: TokenKind::EOF,
+                text: lexer_token.text,
                 span: Span::default(),
             },
 
             OpenDelim(delim) => Self {
                 kind: token_kind_from_open_delim(delim),
+                text: lexer_token.text,
                 span: Span::default(),
             },
             CloseDelim(delim) => Self {
                 kind: token_kind_from_close_delim(delim),
+                text: lexer_token.text,
                 span: Span::default(),
             },
 
             Unknown => Self {
                 kind: TokenKind::Unknown,
+                text: lexer_token.text,
                 span: Span::default(),
             },
             DummyToken => Self {
                 kind: TokenKind::DummyToken,
+                text: lexer_token.text,
                 span: Span::default(),
             },
         }
     }
 }
 
-impl Default for TokenMeta {
+impl Default for Token {
     fn default() -> Self {
         Self {
             kind: TokenKind::DummyToken,
+            text: TokenText::Empty,
             span: Span::default(),
         }
     }
 }
 
-impl TokenMeta {
+impl Token {
     pub fn kind(&self) -> TokenKind {
         self.kind
     }
@@ -194,22 +233,22 @@ pub enum KeyWord {
 
 #[derive(Debug)]
 pub enum Identifier {
-    Type,
+    Type(Token),
 }
 
 #[derive(Debug)]
 pub enum Expression {
-    CardField,
+    CardField(Token),
 }
 
 /*
  * Generate concrete syntax tree.
  */
 #[derive(Debug)]
-pub struct Comments(TokenMeta);
+pub struct Comments(Token);
 
 #[derive(Debug)]
-pub struct CommentBlock(TokenMeta);
+pub struct CommentBlock(Token);
 
 #[derive(Debug)]
 pub struct Card {
@@ -227,14 +266,14 @@ pub struct CardBlock {
 pub struct CardField {
     expr: Expression,
     /// Card fields can optionally end with a separator (ie: ';', '|', ect.)
-    separator: Option<TokenMeta>,
+    separator: Option<Token>,
 }
 
 #[derive(Debug)]
 pub struct NoteType {
-    pound_sign: TokenMeta,
-    open_brace: TokenMeta,
-    close_brace: TokenMeta,
+    pound_sign: Token,
+    open_brace: Token,
+    close_brace: Token,
     note_type: Option<Identifier>,
 }
 
@@ -242,9 +281,9 @@ pub struct NoteType {
 pub struct LetStatement {
     r#let: KeyWord,
     lhs: Identifier,
-    eq: TokenMeta,
+    eq: Token,
     rhs: Identifier,
-    semi_colon: TokenMeta,
+    semi_colon: Token,
 }
 
 #[derive(Debug)]
@@ -254,12 +293,12 @@ pub enum Command {
 
 #[derive(Debug)]
 pub struct ClozeDeletion {
-    open_brace: TokenMeta,
-    cloze_number: TokenMeta,
-    colon: TokenMeta,
+    open_brace: Token,
+    cloze_number: Token,
+    colon: Token,
     deletion: Identifier,
-    close_brace: TokenMeta,
-    hint_colon: Option<TokenMeta>,
+    close_brace: Token,
+    hint_colon: Option<Token>,
     hint: Option<Identifier>,
 }
 
@@ -273,13 +312,13 @@ pub struct StringReader<'a> {
 #[derive(Debug)]
 pub struct Parser<'a> {
     string_reader: StringReader<'a>,
-    peak_buf: Vec<TokenMeta>,
+    peak_buf: Vec<Token>,
     expected_token: TokenKind,
 }
 
 // TODO
-fn cook_lexer_token(lexer_token: LexerToken) -> TokenMeta {
-    TokenMeta::new(lexer_token)
+fn cook_lexer_token(lexer_token: LexerToken) -> Token {
+    Token::new(lexer_token)
 }
 
 #[derive(Debug)]
@@ -309,7 +348,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn next_token(&mut self) -> TokenMeta {
+    fn next_token(&mut self) -> Token {
         cook_lexer_token(self.string_reader.next_token())
     }
 
@@ -318,7 +357,6 @@ impl<'a> Parser<'a> {
 
         loop {
             let token = self.next_token();
-            //dbg!(&token);
 
             match token.kind() {
                 KeyWord => {
@@ -340,7 +378,9 @@ impl<'a> Parser<'a> {
                     dbg!("OpenBrace");
                 }
                 CloseAngleBracket => {
-                    if self.peak_white().kind() == Whitespace && self.peak_second().kind() == KeyWord {
+                    if self.peak_white().kind() == Whitespace
+                        && self.peak_second().kind() == KeyWord
+                    {
                         dbg!(self.parse_command(token)?);
                     }
                 }
@@ -363,11 +403,11 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn parse_note_type(&mut self, pound_sign: TokenMeta) -> Result<NoteType, ParseError> {
+    fn parse_note_type(&mut self, pound_sign: Token) -> Result<NoteType, ParseError> {
         let open_bracket = self.next_expect(TokenKind::OpenBracket)?;
         let note_type = match self.peak().kind() {
             TokenKind::Ident => Some(self.next_expect_ident_type()?),
-            _=> None,
+            _ => None,
         };
         let close_brace = self.next_expect(TokenKind::CloseBracket)?;
 
@@ -379,14 +419,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_command(&mut self, close_angle_bracket: TokenMeta) -> Result<Command, ParseError> {
+    fn parse_command(&mut self, close_angle_bracket: Token) -> Result<Command, ParseError> {
         let keyword = self.next_expect_keyword()?;
         match keyword {
             KeyWord::Let => Ok(Command::LetStatement(self.parse_let_statement(keyword)?)),
         }
     }
 
-    fn next_non_whitespace(&mut self) -> TokenMeta {
+    fn next_non_whitespace(&mut self) -> Token {
         loop {
             let token = self.next_token();
             if token.kind() != TokenKind::Whitespace {
@@ -396,21 +436,37 @@ impl<'a> Parser<'a> {
     }
 
     fn next_expect_keyword(&mut self) -> Result<KeyWord, ParseError> {
-        // TODO Compare str
         match self.next_expect_non_whitespace(TokenKind::KeyWord) {
-            Ok(_) => Ok(KeyWord::Let),
+            Ok(keyword) => {
+                if let TokenText::Text(t) = keyword.text {
+                    match t.as_str() {
+                        "let" => Ok(KeyWord::Let),
+                        kw => {
+                            panic!("Unknown keyword: {kw}");
+                        }
+                    }
+                } else {
+                    return Err(ParseError::Other("[next_expect_keyword] Expected text"));
+                }
+            }
             Err(e) => Err(e),
         }
     }
 
     fn next_expect_ident_type(&mut self) -> Result<Identifier, ParseError> {
         match self.next_expect_non_whitespace(TokenKind::Ident) {
-            Ok(_) => Ok(Identifier::Type),
-            Err(e) => Err(e)
+            Ok(t) => Ok(Identifier::Type(t)),
+            Err(e) => Err(e),
         }
     }
 
     fn parse_card_field(&mut self) -> Result<CardField, ParseError> {
+        // TODO Expressions aren't always one token.
+        // For example, the following should parse
+        // this is 'one field' of a card;     and this is another
+        // ^       ^          ^^        ^     ^
+        // expr    literal     expr     semi  expr
+        let expression = self.next_non_whitespace();
         let separator = loop {
             //println!("Next: parse_card_field: {:?}, second: {:?}", next, self.peak_second_non_white());
             match self.peak().kind() {
@@ -421,7 +477,6 @@ impl<'a> Parser<'a> {
                     }
                 }
                 TokenKind::CloseAngleBracket => {
-                    //println!("Should be command: {:#?}: {:#?}", self, self.peak_second());
                     if self.peak_second().kind() == TokenKind::KeyWord {
                         self.consume_white();
                         break None;
@@ -438,7 +493,7 @@ impl<'a> Parser<'a> {
         };
 
         Ok(CardField {
-            expr: Expression::CardField,
+            expr: Expression::CardField(expression),
             separator,
         })
     }
@@ -447,13 +502,13 @@ impl<'a> Parser<'a> {
         loop {
             if self.peak().kind() == TokenKind::Whitespace {
                 self.string_reader.next_token();
-                continue
+                continue;
             }
             break;
         }
     }
 
-    fn parse_card(&mut self, token: TokenMeta) -> Result<Card, ParseError> {
+    fn parse_card(&mut self, token: Token) -> Result<Card, ParseError> {
         let note_type = self.parse_note_type(token)?;
         let card_block = self.parse_card_block()?;
         Ok(Card {
@@ -494,11 +549,11 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn next_expect_assignment(&mut self) -> Result<TokenMeta, ParseError> {
+    fn next_expect_assignment(&mut self) -> Result<Token, ParseError> {
         self.next_expect_non_whitespace(TokenKind::Eq)
     }
 
-    fn next_expect_terminate_expression(&mut self) -> Result<TokenMeta, ParseError> {
+    fn next_expect_terminate_expression(&mut self) -> Result<Token, ParseError> {
         self.next_expect_non_whitespace(TokenKind::Semi)
     }
 
@@ -506,28 +561,28 @@ impl<'a> Parser<'a> {
         todo!()
     }
 
-    fn peak(&self) -> TokenMeta {
+    fn peak(&self) -> Token {
         let mut cursor = self.string_reader.cursor.clone();
         loop {
             let lexer_token = cursor.advance_token();
             if lexer_token.kind() == LexerTokenKind::Whitespace {
                 continue;
             }
-            return cook_lexer_token(lexer_token)
+            return cook_lexer_token(lexer_token);
         }
     }
 
-    fn peak_white(&self) -> TokenMeta {
+    fn peak_white(&self) -> Token {
         cook_lexer_token(self.string_reader.cursor.clone().advance_token())
     }
 
-    fn peak_second_white(&self) -> TokenMeta {
+    fn peak_second_white(&self) -> Token {
         let mut cursor = self.string_reader.cursor.clone();
         cursor.advance_token();
         cook_lexer_token(cursor.advance_token())
     }
 
-    fn peak_second(&self) -> TokenMeta {
+    fn peak_second(&self) -> Token {
         let mut cursor = self.string_reader.cursor.clone();
         cursor.advance_token();
         loop {
@@ -535,11 +590,11 @@ impl<'a> Parser<'a> {
             if lexer_token.kind() == LexerTokenKind::Whitespace {
                 continue;
             }
-            return cook_lexer_token(lexer_token)
+            return cook_lexer_token(lexer_token);
         }
     }
 
-    fn next_expect(&mut self, kind: TokenKind) -> Result<TokenMeta, ParseError> {
+    fn next_expect(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.next_token();
         match token.kind() {
             t if t == kind => Result::Ok(token),
@@ -550,7 +605,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn next_expect_non_whitespace(&mut self, kind: TokenKind) -> Result<TokenMeta, ParseError> {
+    fn next_expect_non_whitespace(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.next_non_whitespace();
         match token.kind() {
             t if t == kind => Result::Ok(token),
