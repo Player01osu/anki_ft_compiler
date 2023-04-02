@@ -13,27 +13,6 @@ use anki_ft_lexer::Token as LexerToken;
 use anki_ft_lexer::TokenKind as LexerTokenKind;
 use anki_ft_lexer::KW;
 
-//TODO ?
-//#[derive(Clone, Debug)]
-//pub enum TokenKind {
-//    DummyToken,
-//}
-//
-//#[derive(Clone, Debug)]
-//pub struct Token {
-//    kind: TokenKind,
-//    pub len: usize,
-//}
-//
-//impl Default for Token {
-//    fn default() -> Self {
-//        Self {
-//            kind: TokenKind::DummyToken,
-//            len: 0,
-//        }
-//    }
-//}
-
 /*
  * Enriched tokens
  */
