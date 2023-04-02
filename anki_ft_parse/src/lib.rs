@@ -438,15 +438,12 @@ impl<'a> Parser<'a> {
     fn next_expect_keyword(&mut self) -> Result<KeyWord, ParseError> {
         match self.next_expect_non_whitespace(TokenKind::KeyWord) {
             Ok(keyword) => {
-                if let TokenText::Text(t) = keyword.text {
-                    match t.as_str() {
-                        "let" => Ok(KeyWord::Let),
-                        kw => {
-                            panic!("Unknown keyword: {kw}");
-                        }
+                let text = keyword.text.to_str();
+                match text {
+                    "let" => Ok(KeyWord::Let),
+                    kw => {
+                        panic!("Unknown keyword: {kw}");
                     }
-                } else {
-                    return Err(ParseError::Other("[next_expect_keyword] Expected text"));
                 }
             }
             Err(e) => Err(e),

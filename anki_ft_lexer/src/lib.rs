@@ -88,11 +88,26 @@ pub enum Delimiter {
     AngleBracket,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub enum TokenText {
-    Text(String),
+    Text(*const u8, usize),
     #[default]
     Empty,
+}
+
+impl std::fmt::Debug for TokenText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_str())
+    }
+}
+
+impl TokenText {
+    pub fn to_str(&self) -> &str {
+        match self {
+            TokenText::Text(src, len) => unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(*src, *len))},
+            TokenText::Empty => Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -222,9 +237,11 @@ impl<'a> Cursor<'a> {
             // A reference into src should always be valid since src is immutable and lives for the
             // entire duration of parse.
             //let slice = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(src.as_ptr(), src_slice.len()))};
-            let slice = src[start..end].to_owned();
+            let slice = &src[start..end];
+            let ptr = slice.as_ptr();
+            let len = slice.len();
 
-            TokenText::Text(slice)
+            TokenText::Text(ptr, len)
         }
 
         let start = self.src.len() - self.len_remaining;
