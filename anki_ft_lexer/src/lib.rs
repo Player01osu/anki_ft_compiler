@@ -223,20 +223,7 @@ impl<'a> Cursor<'a> {
             } //_ => TokenKind::Unknown,
         };
 
-        #[allow(unused)]
-        fn token_text_(src: &str, start: usize, end: usize) -> &str {
-            let src_slice = &src[start..end];
-            let slice = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(src.as_ptr(), src_slice.len()))};
-            slice
-        }
-
         fn token_text(src: &str, start: usize, end: usize) -> TokenText {
-            // TODO This should be a reference into the src slice.
-            // I don't feel like pulling my hair out trying to get around the borrow rules.
-            //
-            // A reference into src should always be valid since src is immutable and lives for the
-            // entire duration of parse.
-            //let slice = unsafe {std::str::from_utf8_unchecked(std::slice::from_raw_parts(src.as_ptr(), src_slice.len()))};
             let slice = &src[start..end];
             let ptr = slice.as_ptr();
             let len = slice.len();
