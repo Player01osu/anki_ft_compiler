@@ -18,7 +18,7 @@ pub struct Token {
     pub len: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KW {
     Let,
 }
@@ -34,21 +34,22 @@ impl FromStr for KW {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Symbol {
     KW(KW),
     Other,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LiteralKind {
     String { terminated: bool },
     // TODO
     Num,
+
     Bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TokenKind {
     Ident(Symbol),
     Literal(LiteralKind),
@@ -70,6 +71,7 @@ pub enum TokenKind {
     Whitespace,
     Unknown,
     EOF,
+    DummyToken,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -84,7 +86,7 @@ pub enum Delimiter {
     AngleBracket,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cursor<'a> {
     buf: String,
     len_remaining: usize,
@@ -97,63 +99,47 @@ impl Token {
     }
 }
 
-const DELIM: TokenKind = TokenKind::Semi;
+impl Default for Token {
+    fn default() -> Self {
+        Self {
+            len: 0,
+            kind: TokenKind::DummyToken,
+        }
+    }
+}
+
+const _DELIM: TokenKind = TokenKind::Semi;
 
 fn is_begins_kw(c: char) -> bool {
-    match c {
-        'l' => true,
-        _ => false,
-    }
+    matches!(c, 'l')
 }
 
 fn is_whitespace(c: char) -> bool {
-    match c {
-        ' ' | '\t' | '\r' | '\n' => true,
-        _ => false,
-    }
+    matches!(c, ' ' | '\t' | '\r' | '\n')
 }
 
 fn is_string_literal(c: char) -> bool {
-    match c {
-        '\'' | '"' => true,
-        _ => false,
-    }
+    matches!(c, '\'' | '"')
 }
 
 fn is_kw(str: &str) -> bool {
-    match str {
-        "let" => true,
-        _ => false,
-    }
+    matches!(str, "let")
 }
 
 fn is_end_kw(c: char) -> bool {
-    match c {
-        c if is_whitespace(c) => true,
-        c if is_end_of_ident(c) => true,
-        _ => false,
-    }
+    matches!(c, c if is_whitespace(c) || is_end_of_ident(c))
 }
 
 fn is_line_comment(c: char) -> bool {
-    match c {
-        '-' => true,
-        _ => false,
-    }
+    matches!(c, '-')
 }
 
 fn is_block_comment(str: String) -> bool {
-    match str.as_str() {
-        "-[[" => true,
-        _ => false,
-    }
+    matches!(str.as_str(), "-[[")
 }
 
 fn is_end_of_ident(c: char) -> bool {
-    match c {
-        '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' | ':' => true,
-        _ => false,
-    }
+    matches!(c, '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' | ':' | '>')
 }
 
 impl<'a> Cursor<'a> {
@@ -238,7 +224,7 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    fn pos_within_token(&self) -> usize {
+    pub fn pos_within_token(&self) -> usize {
         self.len_remaining - self.chars.as_str().len()
     }
 
@@ -361,5 +347,15 @@ impl<'a> Cursor<'a> {
     fn consume_whitespace(&mut self) -> TokenKind {
         self.consume_while(|c| is_whitespace(*c));
         TokenKind::Whitespace
+    }
+}
+
+impl Token {
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn kind(&self) -> TokenKind {
+        self.kind
     }
 }

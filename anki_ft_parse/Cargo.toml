@@ -6,3 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anki_ft_lexer = { path = "../anki_ft_lexer" }
+derive_more = "0.99.17"
+strum = { version = "0.24.1", features = ["strum_macros", "derive"] }

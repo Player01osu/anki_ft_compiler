@@ -14,6 +14,9 @@ And block comments are done with double hyphens followed by double brackets.
 This is an example of a basic card type; It also has a field for the back;
 You_Can_Put_Tags Here As_well
 
+
+> let deck = fjosi;
+
 #[Cloze]
 Clozes work in a similar way {c1:Word}; The back can be filled;
 
