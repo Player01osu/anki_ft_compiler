@@ -165,7 +165,7 @@ fn is_block_comment(str: String) -> bool {
 }
 
 fn is_end_of_ident(c: char) -> bool {
-    matches!(c, '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' | ':' | '>')
+    matches!(c, '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' | ':' | '>') || is_string_literal(c)
 }
 
 impl<'a> Cursor<'a> {
