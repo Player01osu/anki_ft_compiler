@@ -17,14 +17,16 @@ fn main() {
 
     let mut src = String::new();
     BufReader::new(test_file).read_to_string(&mut src).unwrap();
+
     //let mut s = tokenize(&src);
-    //for _ in stdin().lines() {
-    //    dbg!(s.next());
-    //}
     let string_reader = StringReader::new(&src);
 
+
     let mut parser = Parser::new(string_reader);
-    parser.parse_tokens().unwrap();
+
+    for _ in stdin().lines() {
+        dbg!(parser.parse_grammar().unwrap());
+    }
 
     use std::io::stdin;
 }

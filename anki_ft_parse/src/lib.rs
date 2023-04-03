@@ -79,6 +79,15 @@ pub struct TokenOwned {
     pub span: Span,
 }
 
+#[derive(Debug)]
+pub enum ConcreteGrammar {
+    LineComment(LineComment),
+    BlockComment(BlockComment),
+    Card(Card),
+    Command(Command),
+    EOF,
+}
+
 //impl ToOwned for TokenMeta {
 //    type Owned = TokenOwned;
 //    fn to_owned(&self) -> Self::Owned {
@@ -106,6 +115,10 @@ fn token_kind_from_open_delim(delim: Delimiter) -> TokenKind {
         Delimiter::AngleBracket => TokenKind::OpenAngleBracket,
         Delimiter::Bracket => TokenKind::OpenBracket,
     }
+}
+
+fn is_end_of_expr(token_kind: TokenKind) -> bool {
+    matches!(token_kind, TokenKind::Pound | TokenKind::CloseAngleBracket)
 }
 
 impl Token {
@@ -238,17 +251,17 @@ pub enum Identifier {
 
 #[derive(Debug)]
 pub enum Expression {
-    CardField(Token),
+    CardField(Vec<Token>),
 }
 
 /*
  * Generate concrete syntax tree.
  */
 #[derive(Debug)]
-pub struct Comments(Token);
+pub struct LineComment(Token);
 
 #[derive(Debug)]
-pub struct CommentBlock(Token);
+pub struct BlockComment(Token);
 
 #[derive(Debug)]
 pub struct Card {
@@ -352,7 +365,7 @@ impl<'a> Parser<'a> {
         cook_lexer_token(self.string_reader.next_token())
     }
 
-    pub fn parse_tokens(&mut self) -> Result<(), ParseError> {
+    pub fn parse_grammar(&mut self) -> Result<ConcreteGrammar, ParseError> {
         use TokenKind::*;
 
         loop {
@@ -370,9 +383,13 @@ impl<'a> Parser<'a> {
                 }
                 LineComment => {
                     dbg!("LineComment");
+                    use self::LineComment as LineCommentStruct;
+                    return Ok(ConcreteGrammar::LineComment(LineCommentStruct(token)));
                 }
                 BlockComment => {
+                    use self::BlockComment as BlockCommentStruct;
                     dbg!("BlockComment");
+                    return Ok(ConcreteGrammar::BlockComment(BlockCommentStruct(token)));
                 }
                 OpenBrace => {
                     dbg!("OpenBrace");
@@ -381,14 +398,14 @@ impl<'a> Parser<'a> {
                     if self.peak_white().kind() == Whitespace
                         && self.peak_second().kind() == KeyWord
                     {
-                        dbg!(self.parse_command(token)?);
+                        return Ok(ConcreteGrammar::Command(self.parse_command(token)?));
                     }
                 }
                 Pound => {
                     // Could be start of NoteType
                     match self.peak().kind() {
                         OpenBracket => {
-                            dbg!(self.parse_card(token)?);
+                            return Ok(ConcreteGrammar::Card(self.parse_card(token)?));
                         }
                         kind => {
                             dbg!(kind);
@@ -400,7 +417,7 @@ impl<'a> Parser<'a> {
                 t => todo!("{t:?}"),
             }
         }
-        Ok(())
+        Ok(ConcreteGrammar::EOF)
     }
 
     fn parse_note_type(&mut self, pound_sign: Token) -> Result<NoteType, ParseError> {
@@ -463,7 +480,9 @@ impl<'a> Parser<'a> {
         // this is 'one field' of a card;     and this is another
         // ^       ^          ^^        ^     ^
         // expr    literal     expr     semi  expr
-        let expression = self.next_non_whitespace();
+        //
+        //TODO Uh, this could be better.
+        let mut expression = vec![self.next_non_whitespace()];
         let separator = loop {
             //println!("Next: parse_card_field: {:?}, second: {:?}", next, self.peak_second_non_white());
             match self.peak().kind() {
@@ -485,6 +504,7 @@ impl<'a> Parser<'a> {
             let token = self.next_token();
             match token.kind() {
                 TokenKind::Semi => break Some(token),
+                TokenKind::Ident | TokenKind::Literal => expression.push(token),
                 _ => continue,
             }
         };
@@ -519,12 +539,15 @@ impl<'a> Parser<'a> {
         loop {
             let card_field = self.parse_card_field()?;
             match card_field.separator {
-                Some(_) => {
-                    card_fields.push(card_field);
-                }
                 None => {
                     card_fields.push(card_field);
                     break;
+                }
+                Some(_) => {
+                    card_fields.push(card_field);
+                    if is_end_of_expr(self.peak().kind()) {
+                        break;
+                    }
                 }
             }
         }
