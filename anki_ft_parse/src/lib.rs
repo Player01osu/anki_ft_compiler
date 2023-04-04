@@ -262,8 +262,16 @@ pub enum Identifier {
 }
 
 #[derive(Debug)]
-pub enum Expression {
-    CardField(Vec<Token>),
+pub enum ExprType {
+    Normal(Token),
+    Cloze(ClozeDeletion),
+    Empty,
+}
+
+#[derive(Debug)]
+pub struct Expr {
+    token: ExprType,
+    next_token: Option<Box<Expr>>,
 }
 
 /*
@@ -501,43 +509,52 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        let token = self.next_token();
+
+        let token = match token.kind() {
+            TokenKind::Semi => ExprType::Empty,
+            kind if is_cloze(kind) => ExprType::Cloze(self.parse_cloze_deletion(token)?),
+            kind if !is_expr(kind) => return Err(ParseError::Expected{expected: TokenKind::Ident, got: kind}),
+            _ => ExprType::Normal(token),
+        };
+
+        let next_token = if is_expr(self.peak().kind()) {
+            Some(Box::new(self.parse_expression()?))
+        } else {
+            self.consume_white();
+            None
+        };
+
+        Ok(Expr { token, next_token })
+    }
+
     fn parse_card_field(&mut self) -> Result<CardField, ParseError> {
         // TODO Expressions aren't always one token.
         // For example, the following should parse
         // this is 'one field' of a card;     and this is another
         // ^       ^          ^^        ^     ^
-        // expr    literal     expr     semi  expr
-        //
-        //TODO Uh, this could be better.
-        let mut expression = vec![self.next_non_whitespace()];
-        let separator = loop {
-            //println!("Next: parse_card_field: {:?}, second: {:?}", next, self.peak_second_non_white());
+        // ident   literal    ident     semi  ident
+        // ^                           ^      ^
+        // expr                     end expr  expr
+        self.consume_white();
+        let expr = self.parse_expression()?;
+        let separator = {
             match self.peak().kind() {
-                TokenKind::EOF => break None,
-                TokenKind::Pound => {
-                    if self.peak_second_white().kind() == TokenKind::OpenBracket {
-                        break None;
+                TokenKind::Semi => Separator::Normal(self.next_token()),
+                TokenKind::OpenAngleBracket => {
+                    if is_separator(self.peak_second().kind()) {
+                        self.parse_overwrite_separator()?
+                    } else {
+                        Separator::None
                     }
                 }
-                TokenKind::CloseAngleBracket => {
-                    if self.peak_second().kind() == TokenKind::KeyWord {
-                        self.consume_white();
-                        break None;
-                    }
-                }
-                _ => (),
-            }
-
-            let token = self.next_token();
-            match token.kind() {
-                TokenKind::Semi => break Some(token),
-                TokenKind::Ident | TokenKind::Literal => expression.push(token),
-                _ => continue,
+                _ => Separator::None
             }
         };
 
         Ok(CardField {
-            expr: Expression::CardField(expression),
+            expr,
             separator,
         })
     }
