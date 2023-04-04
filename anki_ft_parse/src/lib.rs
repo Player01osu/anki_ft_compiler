@@ -280,6 +280,21 @@ pub struct CardField {
     expr: Expression,
     /// Card fields can optionally end with a separator (ie: ';', '|', ect.)
     separator: Option<Token>,
+    pub separator: Separator,
+}
+
+#[derive(Debug)]
+pub enum Separator {
+    Normal(Token),
+    Overwrite(OverwriteSeparator),
+    None,
+}
+
+#[derive(Debug)]
+pub struct OverwriteSeparator {
+    open_angle_bracket: Token,
+    semi_colon: Token,
+    close_angle_bracket: Token,
 }
 
 #[derive(Debug)]
@@ -515,6 +530,18 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_overwrite_separator(&mut self) -> Result<Separator, ParseError> {
+        let open_angle_bracket = self.next_expect(TokenKind::OpenAngleBracket)?;
+        let semi_colon = self.next_expect(TokenKind::Semi)?;
+        let close_angle_bracket = self.next_expect(TokenKind::CloseAngleBracket)?;
+
+        Ok(Separator::Overwrite(OverwriteSeparator {
+            open_angle_bracket,
+            semi_colon,
+            close_angle_bracket,
+        }))
+    }
+
     fn consume_white(&mut self) {
         loop {
             if self.peak().kind() == TokenKind::Whitespace {
@@ -539,11 +566,11 @@ impl<'a> Parser<'a> {
         loop {
             let card_field = self.parse_card_field()?;
             match card_field.separator {
-                None => {
+                Separator::None => {
                     card_fields.push(card_field);
                     break;
                 }
-                Some(_) => {
+                Separator::Normal(_) | Separator::Overwrite(_) => {
                     card_fields.push(card_field);
                     if is_end_of_expr(self.peak().kind()) {
                         break;
