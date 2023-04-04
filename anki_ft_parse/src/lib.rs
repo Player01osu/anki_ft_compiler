@@ -544,7 +544,7 @@ impl<'a> Parser<'a> {
 
     fn consume_white(&mut self) {
         loop {
-            if self.peak().kind() == TokenKind::Whitespace {
+            if self.peak_white().kind() == TokenKind::Whitespace {
                 self.string_reader.next_token();
                 continue;
             }
