@@ -123,6 +123,11 @@ fn is_end_of_expr(token_kind: TokenKind) -> bool {
         TokenKind::Pound | TokenKind::CloseAngleBracket | TokenKind::EOF
     )
 }
+
+fn is_expr(token_kind: TokenKind) -> bool {
+    matches!(token_kind, TokenKind::Ident | TokenKind::OpenBrace | TokenKind::Colon | TokenKind::CloseBrace | TokenKind::Literal | TokenKind::Whitespace)
+}
+
 }
 
 impl Token {
