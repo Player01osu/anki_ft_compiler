@@ -369,6 +369,10 @@ fn cook_lexer_token(lexer_token: LexerToken) -> Token {
     Token::new(lexer_token)
 }
 
+fn is_separator(token_kind: TokenKind) -> bool {
+    matches!(token_kind, TokenKind::Semi)
+}
+
 #[derive(Debug)]
 pub enum ParseError {
     Expected { expected: TokenKind, got: TokenKind },
