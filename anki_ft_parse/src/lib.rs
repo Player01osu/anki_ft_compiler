@@ -257,6 +257,7 @@ pub enum KeyWord {
 
 #[derive(Debug)]
 pub enum Identifier {
+    Name(Token),
     Type(Token),
 }
 
