@@ -637,8 +637,40 @@ impl<'a> Parser<'a> {
         self.next_expect_non_whitespace(TokenKind::Semi)
     }
 
-    fn parse_cloze_deletion(&self) -> Result<ClozeDeletion, ParseError> {
-        todo!()
+    fn parse_cloze_deletion(&mut self, open_brace: Token) -> Result<ClozeDeletion, ParseError> {
+        let open_brace = open_brace;
+        let cloze_number = self.next_expect(TokenKind::Ident)?;
+        let colon = self.next_expect(TokenKind::Colon)?;
+        let deletion = self.next_expect_ident_type()?;
+
+
+        let token = self.next_token();
+        match token.kind() {
+            TokenKind::Colon => {
+                Ok(ClozeDeletion {
+                    open_brace,
+                    cloze_number,
+                    colon,
+                    deletion,
+                    hint_colon: Some(token),
+                    hint: Some(self.next_expect_ident_type()?),
+                    close_brace: self.next_expect(TokenKind::CloseBrace)?,
+                })
+            }
+            TokenKind::CloseBrace => {
+                Ok(ClozeDeletion {
+                    open_brace,
+                    cloze_number,
+                    colon,
+                    deletion,
+                    close_brace: token,
+                    hint_colon: None,
+                    hint: None,
+                })
+            }
+            got => Err(ParseError::Expected{ expected: TokenKind::CloseBrace, got }),
+
+        }
     }
 
     fn peak(&self) -> Token {
