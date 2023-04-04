@@ -90,6 +90,9 @@ pub enum Delimiter {
 
 #[derive(Default, Clone)]
 pub enum TokenText {
+    // TODO This can point to garbage.
+    //
+    // I want the lifetime of TokenText to last only as long as the reference to src.
     Text(*const u8, usize),
     #[default]
     Empty,
