@@ -285,21 +285,20 @@ pub struct BlockComment(Token);
 
 #[derive(Debug)]
 pub struct Card {
-    note_type: NoteType,
-    card_block: CardBlock,
+    pub note_type: NoteType,
+    pub card_block: CardBlock,
 }
 
 #[derive(Debug)]
 pub struct CardBlock {
     // TODO How to better represent this?
-    card_fields: Vec<CardField>,
+    pub card_fields: Vec<CardField>,
 }
 
 #[derive(Debug)]
 pub struct CardField {
-    expr: Expression,
+    pub expr: Expr,
     /// Card fields can optionally end with a separator (ie: ';', '|', ect.)
-    separator: Option<Token>,
     pub separator: Separator,
 }
 
@@ -434,9 +433,7 @@ impl<'a> Parser<'a> {
                     dbg!("OpenBrace");
                 }
                 CloseAngleBracket => {
-                    if self.peak_white().kind() == Whitespace
-                        && self.peak_second().kind() == KeyWord
-                    {
+                    if self.peak_white().kind() == Whitespace {
                         return Ok(ConcreteGrammar::Command(self.parse_command(token)?));
                     }
                 }
