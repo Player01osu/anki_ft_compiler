@@ -118,7 +118,11 @@ fn token_kind_from_open_delim(delim: Delimiter) -> TokenKind {
 }
 
 fn is_end_of_expr(token_kind: TokenKind) -> bool {
-    matches!(token_kind, TokenKind::Pound | TokenKind::CloseAngleBracket)
+    matches!(
+        token_kind,
+        TokenKind::Pound | TokenKind::CloseAngleBracket | TokenKind::EOF
+    )
+}
 }
 
 impl Token {
