@@ -128,6 +128,8 @@ fn is_expr(token_kind: TokenKind) -> bool {
     matches!(token_kind, TokenKind::Ident | TokenKind::OpenBrace | TokenKind::Colon | TokenKind::CloseBrace | TokenKind::Literal | TokenKind::Whitespace)
 }
 
+fn is_cloze(token_kind: TokenKind) -> bool {
+    matches!(token_kind, TokenKind::OpenBrace)
 }
 
 impl Token {
