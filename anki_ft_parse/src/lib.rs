@@ -7,6 +7,7 @@ use std::error::Error;
 use std::fmt::Display;
 
 use anki_ft_lexer::Cursor;
+use anki_ft_lexer::Span;
 use anki_ft_lexer::Delimiter;
 use anki_ft_lexer::Delimiter::*;
 use anki_ft_lexer::Token as LexerToken;
@@ -17,15 +18,6 @@ use anki_ft_lexer::KW;
 /*
  * Enriched tokens
  */
-
-// TODO: Implement span for better error reporting.
-#[derive(Debug, Default)]
-pub struct Span {
-    pub start_row: usize,
-    pub start_col: usize,
-    pub end_row: usize,
-    pub end_col: usize,
-}
 
 use strum::Display;
 #[derive(Default, Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Display)]
@@ -140,95 +132,95 @@ impl Token {
                 anki_ft_lexer::Symbol::KW(_) => Self {
                     kind: TokenKind::KeyWord,
                     text: lexer_token.text,
-                    span: Span::default(),
+                    span: lexer_token.span,
                 },
                 _ => Self {
                     kind: TokenKind::Ident,
                     text: lexer_token.text,
-                    span: Span::default(),
+                    span: lexer_token.span,
                 },
             },
             Literal(kind) => Self {
                 kind: TokenKind::Literal,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             LineComment => Self {
                 kind: TokenKind::LineComment,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             BlockComment { terminated } => Self {
                 kind: TokenKind::BlockComment,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Comma => Self {
                 kind: TokenKind::Comma,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Semi => Self {
                 kind: TokenKind::Semi,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Colon => Self {
                 kind: TokenKind::Colon,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Hyphen => Self {
                 kind: TokenKind::Hyphen,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Pound => Self {
                 kind: TokenKind::Pound,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Dollar => Self {
                 kind: TokenKind::Dollar,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Eq => Self {
                 kind: TokenKind::Eq,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             Whitespace => Self {
                 kind: TokenKind::Whitespace,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             EOF => Self {
                 kind: TokenKind::EOF,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
 
             OpenDelim(delim) => Self {
                 kind: token_kind_from_open_delim(delim),
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             CloseDelim(delim) => Self {
                 kind: token_kind_from_close_delim(delim),
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
 
             Unknown => Self {
                 kind: TokenKind::Unknown,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
             DummyToken => Self {
                 kind: TokenKind::DummyToken,
                 text: lexer_token.text,
-                span: Span::default(),
+                span: lexer_token.span,
             },
         }
     }
