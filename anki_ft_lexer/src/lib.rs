@@ -1,4 +1,6 @@
+#![allow(dead_code)]
 use std::str::{Chars, FromStr};
+use strum::Display;
 
 pub fn tokenize(src: &str) -> impl Iterator<Item = Token> + '_ {
     let mut cursor = Cursor::new(src);
@@ -24,11 +26,10 @@ pub struct Span {
 pub struct Token {
     kind: TokenKind,
     pub span: Span,
-    pub text: TokenText,
     pub len: usize,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum KW {
     Let,
 }
@@ -44,13 +45,13 @@ impl FromStr for KW {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
 pub enum Symbol {
     KW(KW),
     Other,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
 pub enum LiteralKind {
     String { terminated: bool },
     // TODO
@@ -59,7 +60,7 @@ pub enum LiteralKind {
     Bool,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
 pub enum TokenKind {
     Ident(Symbol),
     Literal(LiteralKind),
@@ -84,7 +85,7 @@ pub enum TokenKind {
     DummyToken,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Delimiter {
     /// `( ... )`
     Parenthesis,
@@ -94,33 +95,6 @@ pub enum Delimiter {
     Bracket,
     /// `< ... >`
     AngleBracket,
-}
-
-#[derive(Default, Clone)]
-pub enum TokenText {
-    // TODO This can point to garbage.
-    //
-    // I want the lifetime of TokenText to last only as long as the reference to src.
-    Text(*const u8, usize),
-    #[default]
-    Empty,
-}
-
-impl std::fmt::Debug for TokenText {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_str())
-    }
-}
-
-impl TokenText {
-    pub fn to_str(&self) -> &str {
-        match self {
-            TokenText::Text(src, len) => unsafe {
-                std::str::from_utf8_unchecked(std::slice::from_raw_parts(*src, *len))
-            },
-            TokenText::Empty => Default::default(),
-        }
-    }
 }
 
 impl Span {
@@ -145,13 +119,8 @@ pub struct Cursor<'a> {
 }
 
 impl Token {
-    fn new(kind: TokenKind, text: TokenText, len: usize, span: Span) -> Self {
-        Self {
-            kind,
-            text,
-            len,
-            span,
-        }
+    fn new(kind: TokenKind, len: usize, span: Span) -> Self {
+        Self { kind, len, span }
     }
 }
 
@@ -159,7 +128,6 @@ impl Default for Token {
     fn default() -> Self {
         Self {
             len: 0,
-            text: Default::default(),
             kind: TokenKind::DummyToken,
             span: Span::default(),
         }
@@ -224,7 +192,7 @@ impl<'a> Cursor<'a> {
         let first_char = match self.chars.next() {
             Some(c) => c,
             None => {
-                return Token::new(TokenKind::EOF, TokenText::Empty, 0, Span::default());
+                return Token::new(TokenKind::EOF, 0, Span::default());
             }
         };
 
@@ -266,21 +234,10 @@ impl<'a> Cursor<'a> {
             } //_ => TokenKind::Unknown,
         };
 
-        fn token_text(src: &str, start: usize, end: usize) -> TokenText {
-            let slice = &src[start..end];
-            let ptr = slice.as_ptr();
-            let len = slice.len();
-
-            TokenText::Text(ptr, len)
-        }
-
-        let start = self.src.len() - self.len_remaining;
-        let end = start + self.pos_within_token();
-        let text = token_text(self.src, start, end);
         let (span, start_next) = self.get_span(start_chars, self.pos_within_token());
         self.reset_span(start_next);
 
-        let token = Token::new(token_kind, text, self.pos_within_token(), span);
+        let token = Token::new(token_kind, self.pos_within_token(), span);
         self.reset_pos_within_token();
         token
     }
@@ -290,31 +247,33 @@ impl<'a> Cursor<'a> {
         self.col = col;
     }
 
-    fn get_span(&self, mut chars: Chars<'a>, len: usize) -> (Span, (usize, usize)) {
+    fn get_span(&self, chars: Chars<'a>, len: usize) -> (Span, (usize, usize)) {
         let newline_count = chars.clone().take(len).filter(|c| is_newline(*c)).count();
+        let last_char = chars.clone().nth(len - 1).expect("Last char should exist.");
 
         let (end_row, end_col) = match newline_count {
-            0 | 1 => (self.row, self.col + len - 1),
+            0 => (self.row, self.col + len - 1),
+            1 if is_newline(last_char) => (self.row, self.col + len - 1),
             _ => (
-                self.row + newline_count - 1,
+                self.row + newline_count - (is_newline(last_char) as usize),
                 chars.as_str()[..len]
                     .chars()
                     .rev()
                     .take_while(|c| !is_newline(*c))
-                    .count() + 1,
+                    .count()
+                    + 1 - (!is_newline(last_char) as usize),
             ),
         };
-
-        match chars.nth(len - 1) {
-            Some(c) if is_newline(c) => (
+        if is_newline(last_char) {
+            (
                 Span::new(self.row, self.col, end_row, end_col),
                 (end_row + 1, 1),
-            ),
-            Some(_) => (
+            )
+        } else {
+            (
                 Span::new(self.row, self.col, end_row, end_col),
                 (end_row, end_col + 1),
-            ),
-            _ => unreachable!(),
+            )
         }
     }
 
