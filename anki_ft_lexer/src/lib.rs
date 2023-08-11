@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use std::fmt::Display;
 use std::str::{Chars, FromStr};
 use strum::Display;
 
@@ -24,12 +25,18 @@ pub struct Span {
 
 #[derive(Clone, Debug)]
 pub struct Token {
-    kind: TokenKind,
+    pub kind: TokenKind,
     pub span: Span,
     pub len: usize,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.kind)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
 pub enum KW {
     Let,
 }
@@ -45,22 +52,36 @@ impl FromStr for KW {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Symbol {
     KW(KW),
-    Other,
+    Other(String),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LiteralKind {
-    String { terminated: bool },
+    String { item: String, terminated: bool },
     // TODO
-    Num,
-
-    Bool,
+    Num(Num),
+    Bool(bool),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Display)]
+impl Display for Num {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Num::Int(n) => n.fmt(f),
+            Num::Float(n) => n.fmt(f),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Num {
+    Int(i64),
+    Float(f64),
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Ident(Symbol),
     Literal(LiteralKind),
@@ -85,6 +106,61 @@ pub enum TokenKind {
     DummyToken,
 }
 
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Symbol::KW(kw) => kw.fmt(f),
+            Symbol::Other(s) => s.fmt(f),
+        }
+    }
+}
+
+impl Display for LiteralKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LiteralKind::String { item, .. } => write!(f, "{item}"),
+            LiteralKind::Num(n) => n.fmt(f),
+            LiteralKind::Bool(b) => b.fmt(f),
+        }
+    }
+}
+
+impl Display for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenKind::Ident(i) => i.fmt(f),
+            TokenKind::Literal(l) => l.fmt(f),
+            TokenKind::Comma => write!(f, ","),
+            TokenKind::Semi => write!(f, ";"),
+            TokenKind::Colon => write!(f, ":"),
+            TokenKind::Hyphen => write!(f, "-"),
+            TokenKind::Pound => write!(f, "#"),
+            TokenKind::Dollar => write!(f, "$"),
+            TokenKind::Eq => write!(f, "="),
+            TokenKind::OpenDelim(d) => match d {
+                Delimiter::Parenthesis => write!(f, "("),
+                Delimiter::Brace => write!(f, "["),
+                Delimiter::Bracket => write!(f, "{{"),
+                Delimiter::AngleBracket => write!(f, "<"),
+                Delimiter::NoteType => write!(f, "#["),
+            },
+            TokenKind::CloseDelim(d) => match d {
+                Delimiter::Parenthesis => write!(f, ")"),
+                Delimiter::Brace => write!(f, "]"),
+                Delimiter::Bracket => write!(f, "}}"),
+                Delimiter::AngleBracket => write!(f, ">"),
+                Delimiter::NoteType => write!(f, "]"),
+            }
+            TokenKind::LineComment => write!(f, "LineComment"),
+            TokenKind::BlockComment { .. } => write!(f, "BlockComment"),
+            TokenKind::Whitespace => write!(f, "Whitespace"),
+            TokenKind::Unknown => write!(f, "Unknown"),
+            TokenKind::EOF => write!(f, "EOF"),
+            TokenKind::DummyToken => write!(f, "DummyToken"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Delimiter {
     /// `( ... )`
@@ -95,16 +171,45 @@ pub enum Delimiter {
     Bracket,
     /// `< ... >`
     AngleBracket,
+    /// `#['
+    NoteType,
 }
 
 impl Span {
     pub fn new(start_row: usize, start_col: usize, end_row: usize, end_col: usize) -> Self {
-        Self {
+        let span = Self {
             start_row,
             start_col,
             end_row,
             end_col,
-        }
+        };
+        assert!(span.valid_span(), "{span} Invalid span");
+        span
+    }
+
+    pub fn join(self, other: Span) -> Self {
+        assert!(
+            (other.end_row >= self.start_row && other.end_col >= self.start_col)
+                || other.end_row > self.start_row,
+            "{self}\n{other}\nInvalid span join"
+        );
+
+        Self::new(self.start_row, self.start_col, other.end_row, other.end_col)
+    }
+
+    fn valid_span(self) -> bool {
+        (self.end_row >= self.start_row && self.end_col >= self.start_col)
+            || self.end_row > self.start_row
+    }
+}
+
+impl Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{} => {}:{}",
+            self.start_row, self.start_col, self.end_row, self.end_col
+        )
     }
 }
 
@@ -136,6 +241,10 @@ impl Default for Token {
 
 const _DELIM: TokenKind = TokenKind::Semi;
 
+fn is_keep_white(c: char) -> bool {
+    matches!(c, 'a'..='z' | 'A'..='Z' | '{' ) || is_string_literal(c)
+}
+
 fn is_begins_kw(c: char) -> bool {
     matches!(c, 'l')
 }
@@ -149,7 +258,7 @@ fn is_whitespace(c: char) -> bool {
 }
 
 fn is_string_literal(c: char) -> bool {
-    matches!(c, '\'' | '"')
+    matches!(c, '"')
 }
 
 fn is_kw(str: &str) -> bool {
@@ -171,7 +280,7 @@ fn is_block_comment(str: String) -> bool {
 fn is_end_of_ident(c: char) -> bool {
     matches!(
         c,
-        '$' | '#' | ';' | '=' | '[' | ']' | '{' | '}' | ':' | '<' | '>'
+        '#' | ';' | '\0' | '='
     ) || is_string_literal(c)
 }
 
@@ -203,20 +312,23 @@ impl<'a> Cursor<'a> {
             c if is_whitespace(c) => self.consume_whitespace(),
 
             c if is_string_literal(c) => self.consume_string_literal(c),
+
             // TODO
             //c if is_literal(c) => self.consume_literal(c),
             ',' => TokenKind::Comma,
             ';' => TokenKind::Semi,
             ':' => TokenKind::Colon,
             '-' => TokenKind::Hyphen,
+            '#' if self.peak_first() == '[' => {
+                self.chars.next();
+                TokenKind::OpenDelim(Delimiter::NoteType)
+            }
             '#' => TokenKind::Pound,
             '$' => TokenKind::Dollar,
             '=' => TokenKind::Eq,
 
-            '[' => TokenKind::OpenDelim(Delimiter::Bracket),
             ']' => TokenKind::CloseDelim(Delimiter::Bracket),
 
-            '<' => TokenKind::OpenDelim(Delimiter::AngleBracket),
             '>' => TokenKind::CloseDelim(Delimiter::AngleBracket),
 
             '{' => TokenKind::OpenDelim(Delimiter::Brace),
@@ -261,7 +373,8 @@ impl<'a> Cursor<'a> {
                     .rev()
                     .take_while(|c| !is_newline(*c))
                     .count()
-                    + 1 - (!is_newline(last_char) as usize),
+                    + 1
+                    - (!is_newline(last_char) as usize),
             ),
         };
         if is_newline(last_char) {
@@ -283,6 +396,14 @@ impl<'a> Cursor<'a> {
             // EOF
             None => '\0',
         }
+    }
+
+    fn peak_non_white(&self) -> char {
+        self.chars
+            .clone()
+            .skip_while(|c| is_whitespace(*c))
+            .next()
+            .unwrap_or('\0')
     }
 
     fn peak_n(&self, n: usize) -> char {
@@ -354,7 +475,7 @@ impl<'a> Cursor<'a> {
         loop {
             let c = match self.chars.next() {
                 Some(c) => c,
-                None => return TokenKind::Ident(Symbol::Other),
+                None => return TokenKind::Ident(Symbol::Other(self.buf.clone())),
             };
             self.buf.push(c);
             let peak_first = self.peak_first();
@@ -371,49 +492,84 @@ impl<'a> Cursor<'a> {
     }
 
     fn consume_ident(&mut self) -> TokenKind {
+        //if self.buf.chars().next().unwrap() == '\\' {
+        //    if self.peak_first() == '"' {
+        //        self.buf.push('"');
+        //        self.buf.push('"');
+        //    }
+        //    self.chars.next();
+        //}
+
         loop {
             // FIXME ??????
             let peak_first = self.peak_first();
+
             if is_whitespace(peak_first) || is_end_of_ident(peak_first) {
-                let next_non_white = self
-                    .chars
-                    .clone()
-                    .skip_while(|c| is_whitespace(*c))
-                    .next()
-                    .unwrap_or('\0');
-                if is_end_of_ident(next_non_white) {
+                let peak_non_white = self.peak_non_white();
+                if is_keep_white(peak_non_white) {
+                    loop {
+                        let c = self.peak_first();
+                        if !is_whitespace(c) {
+                            break;
+                        }
+                        self.buf.push(c);
+                        self.chars.next();
+                    }
+                }
+                if is_end_of_ident(peak_non_white) {
                     break;
                 }
             }
             let c = match self.chars.next() {
                 Some(c) if is_end_of_ident(c) => break,
                 Some(c) => c,
-                None => return TokenKind::Ident(Symbol::Other),
+                None => return TokenKind::Ident(Symbol::Other(self.buf.clone())),
             };
             self.buf.push(c);
         }
 
-        TokenKind::Ident(Symbol::Other)
+        TokenKind::Ident(Symbol::Other(self.buf.clone()))
     }
 
     fn consume_string_literal(&mut self, literal_char: char) -> TokenKind {
+        self.buf.clear();
         let kind = loop {
             let c = match self.chars.next() {
                 Some(c) => c,
-                None => return TokenKind::Literal(LiteralKind::String { terminated: false }),
+                None => {
+                    return TokenKind::Literal(LiteralKind::String {
+                        item: self.buf.clone(),
+                        terminated: false,
+                    })
+                }
             };
 
             match c {
                 // Escaped
-                '\\' => {
-                    if self.peak_first() == literal_char {
-                        self.chars.next();
+                '\\' if self.peak_first() == literal_char => {
+                    let c = match self.chars.next() {
+                        Some(c) => c,
+                        None => {
+                            return TokenKind::Literal(LiteralKind::String {
+                                item: self.buf.clone(),
+                                terminated: false,
+                            })
+                        }
+                    };
+
+                    // Escape quotation with two quotes (ie: "")
+                    if literal_char == '"' {
+                        self.buf.push(c);
                     }
+                    self.buf.push(c);
                 }
                 c if c == literal_char => {
-                    break LiteralKind::String { terminated: true };
+                    break LiteralKind::String {
+                        item: self.buf.clone(),
+                        terminated: true,
+                    };
                 }
-                _ => (),
+                _ => self.buf.push(c),
             }
         };
         TokenKind::Literal(kind)
@@ -431,6 +587,6 @@ impl Token {
     }
 
     pub fn kind(&self) -> TokenKind {
-        self.kind
+        self.kind.clone()
     }
 }

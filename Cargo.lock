@@ -3,12 +3,19 @@
 version = 3
 
 [[package]]
-name = "anki_ft_ast"
+name = "anki_ft_codegen"
 version = "0.1.0"
+dependencies = [
+ "anki_ft_lexer",
+ "anki_ft_parse",
+]
 
 [[package]]
 name = "anki_ft_lexer"
 version = "0.1.0"
+dependencies = [
+ "strum 0.24.1",
+]
 
 [[package]]
 name = "anki_ft_parse"
@@ -16,14 +23,14 @@ version = "0.1.0"
 dependencies = [
  "anki_ft_lexer",
  "derive_more",
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
 name = "anki_ftc"
 version = "0.1.0"
 dependencies = [
- "anki_ft_ast",
+ "anki_ft_codegen",
  "anki_ft_lexer",
  "anki_ft_parse",
 ]
@@ -32,9 +39,10 @@ dependencies = [
 name = "compiler_test"
 version = "0.1.0"
 dependencies = [
- "anki_ft_ast",
+ "anki_ft_codegen",
  "anki_ft_lexer",
  "anki_ft_parse",
+ "strum 0.25.0",
 ]
 
 [[package]]
@@ -109,6 +117,12 @@ checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 dependencies = [
  "strum_macros",
 ]
+
+[[package]]
+name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
 
 [[package]]
 name = "strum_macros"

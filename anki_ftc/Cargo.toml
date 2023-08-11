@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 anki_ft_lexer = { path = "../anki_ft_lexer" }
 anki_ft_parse = { path = "../anki_ft_parse" }
-anki_ft_ast = { path = "../anki_ft_ast" }
+anki_ft_codegen = { path = "../anki_ft_codegen" }
