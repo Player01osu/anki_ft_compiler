@@ -1,11 +1,17 @@
 -- Double hyphens serve as single line comments
 
+> let deck = Sugma;
+#[hello
+nuts]
+
+sugam
 #[]
 "literal"; "lmao";"";"\""
 
 > let default_card = Basic;
 > let deck = example_deck;
 > let default_tags = Cool_Tags;
+
 
 --[[
 And block comments are done with double hyphens followed by double brackets.
@@ -33,7 +39,7 @@ correctly; And work
 as expected;
 
 #[]
-Default card types are available through empty '#[]';;
+Default card types are available through empty "#[]";;
 
 #[Four_Field_Card_Type]
 Multiple fields are handled as expected;
@@ -50,5 +56,5 @@ Tag_one
 > let default_card = Cloze;
 
 #[]
-Variables are defined {c1:procedurally}; Meaning values can be redefined in
+Statements are defined {c1:procedurally}; Meaning values can be redefined in
 later parts of the file;
