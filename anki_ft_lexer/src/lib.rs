@@ -131,7 +131,8 @@ fn is_end_cardfield(current_char: char, next_char: char, field_separator: char) 
     let card_type = current_char.is_whitespace() && next_char == '#';
     let end_field = next_char == field_separator;
     let begin_command = next_char == '>' && current_char == '\n';
-    card_type || end_field || begin_command
+    let is_eof = next_char == '\0';
+    card_type || end_field || begin_command || is_eof
 }
 
 impl<'a> Lexer<'a> {
@@ -151,7 +152,7 @@ impl<'a> Lexer<'a> {
 
     pub fn next_token(&mut self) -> Token {
         let start_chars = self.chars.clone();
-        let c = match dbg!(self.bump()) {
+        let c = match self.bump() {
             Some(c) => c,
             None => return eof_token(),
         };
@@ -266,7 +267,7 @@ impl<'a> Lexer<'a> {
             c = self.bump().unwrap_or('\0');
         }
 
-        TokenKind::CardField(buf)
+        TokenKind::CardField(buf.trim().to_owned())
     }
 
     fn peak(&self) -> char {
