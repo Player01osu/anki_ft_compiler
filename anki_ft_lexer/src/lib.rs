@@ -54,12 +54,19 @@ impl Span {
 }
 
 #[derive(Debug, Clone)]
+pub enum Literal {
+    String(String),
+    Number(i32),
+    Float(f32),
+}
+
+#[derive(Debug, Clone)]
 pub enum TokenKind {
     LineComment,
     BlockComment,
 
     Ident(String),
-    StringLiteral(String),
+    Literal(Literal),
     Keyword(Keyword),
     Whitespace,
 
@@ -76,6 +83,17 @@ pub enum TokenKind {
     Dummy,
 }
 
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::String(s) => s.fmt(f),
+            Literal::Number(n) => n.fmt(f),
+            Literal::Float(n) => n.fmt(f),
+        }
+    }
+}
+
+// TODO: Use a global string buffer to avoid realloaction.
 #[derive(Debug)]
 pub struct Lexer<'a> {
     src: &'a str,
@@ -144,6 +162,10 @@ fn is_overwrite(field_separator: char, (fst, snd): (char, char)) -> bool {
     field_separator == fst && snd == '>'
 }
 
+fn is_end_number_literal(c: char) -> bool {
+    !(matches!(c, '0'..='9' | '.'))
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(src: &'a str, field_separator: char) -> Self {
         Self {
@@ -178,6 +200,7 @@ impl<'a> Lexer<'a> {
             '<' if is_overwrite(self.field_separator, self.peak_two()) => {
                 self.consume_field_overwrite()
             }
+            '0'..='9' if self.command_mode => self.consume_number_literal(),
             c if self.field_separator == c => TokenKind::FieldSeparator { overwrite: false },
             _ if self.command_mode => self.consume_ident(),
             _ => self.consume_cardfield(),
@@ -191,6 +214,34 @@ impl<'a> Lexer<'a> {
         self.reset_pos(span);
 
         Token { kind, span }
+    }
+
+    fn consume_number_literal(&mut self) -> TokenKind {
+        let mut buf = String::new();
+        let mut c = self.current_char;
+        let mut is_float = false;
+        loop {
+            if c == '.' {
+                is_float = true;
+            }
+            buf.push(c);
+            if is_end_number_literal(self.peak()) {
+                break;
+            }
+            c = self.bump().unwrap_or('\0');
+        }
+
+        if is_float {
+            match buf.parse() {
+                Ok(v) => TokenKind::Literal(Literal::Float(v)),
+                Err(_) => TokenKind::Illegal,
+            }
+        } else {
+            match buf.parse() {
+                Ok(v) => TokenKind::Literal(Literal::Number(v)),
+                Err(_) => TokenKind::Illegal,
+            }
+        }
     }
 
     fn reset_pos(&mut self, span: Span) {
@@ -281,7 +332,7 @@ impl<'a> Lexer<'a> {
             c = self.bump().unwrap_or('\0');
         }
 
-        TokenKind::StringLiteral(buf)
+        TokenKind::Literal(Literal::String(buf))
     }
 
     fn consume_cardfield(&mut self) -> TokenKind {

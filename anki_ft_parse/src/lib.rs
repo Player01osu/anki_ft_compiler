@@ -1,4 +1,4 @@
-use anki_ft_lexer::{Keyword, Lexer, Span, Token as LexerToken, TokenKind as LexerTokenKind};
+use anki_ft_lexer::{Keyword, Lexer, Span, Token as LexerToken, TokenKind as LexerTokenKind, Literal};
 
 #[derive(Debug)]
 pub struct Parser<'a> {
@@ -50,8 +50,17 @@ pub enum Command {
 
 #[derive(Debug)]
 pub struct Let {
-    lhs: LexerToken,
-    rhs: LexerToken,
+    lhs: Ident,
+    rhs: Rhs,
+}
+
+#[derive(Debug)]
+pub struct Ident(String);
+
+#[derive(Debug)]
+pub enum Rhs {
+    Ident(Ident),
+    Literal(Literal),
 }
 
 #[derive(Debug)]
@@ -69,6 +78,27 @@ macro_rules! expect_lexer {
             LexerToken { span, .. } => return Err(ParseError::Unexpected(span)),
         }
     }};
+}
+
+impl Let {
+    pub fn command(&self) -> (&str, String) {
+        (self.lhs.as_str(), self.rhs.as_str())
+    }
+}
+
+impl Ident {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl Rhs {
+    pub fn as_str(&self) -> String {
+        match self {
+            Self::Ident(ident) => ident.as_str().to_owned(),
+            Self::Literal(literal) => literal.to_string(),
+        }
+    }
 }
 
 impl<'a> Parser<'a> {
@@ -108,7 +138,7 @@ impl<'a> Parser<'a> {
             LexerTokenKind::Whitespace => self.next_token(),
 
             LexerTokenKind::Ident(_) => todo!(),
-            LexerTokenKind::StringLiteral(_) => todo!(),
+            LexerTokenKind::Literal(_) => todo!(),
             LexerTokenKind::Keyword(_) => todo!(),
             LexerTokenKind::Notetype(ref notetype) => Ok(Some(self.parse_note(notetype.clone())?)),
             LexerTokenKind::CardField(_) => todo!(),
@@ -250,12 +280,26 @@ impl<'a> Parser<'a> {
 
     fn parse_let(&mut self) -> Result<Token> {
         let start_span = self.current_token.span;
-        let lhs = expect_lexer!(self, LexerTokenKind::Ident(..));
+        let lhs = match self.bump_lexer_no_white() {
+            LexerToken {
+                kind: LexerTokenKind::Ident(string),
+                ..
+            } => Ident(string),
+            LexerToken { span, .. } => return Err(ParseError::Unexpected(span)),
+        };
         expect_lexer!(self, LexerTokenKind::Assignment);
-        let rhs = expect_lexer!(
-            self,
-            LexerTokenKind::Ident(..) | LexerTokenKind::StringLiteral(..)
-        );
+        let rhs = match self.bump_lexer_no_white() {
+            LexerToken {
+                kind: LexerTokenKind::Ident(string),
+                ..
+            } => Rhs::Ident(Ident(string)),
+            LexerToken {
+                kind: LexerTokenKind::Literal(literal),
+                ..
+            } => Rhs::Literal(literal),
+            LexerToken { span, .. } => return Err(ParseError::Unexpected(span)),
+        };
+
         let end_command = expect_lexer!(self, LexerTokenKind::EndCommand);
 
         let kind = TokenKind::Command(Command::Let(Let { lhs, rhs }));
