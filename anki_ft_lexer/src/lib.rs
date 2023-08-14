@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{str::Chars, fmt::Display};
+use std::{fmt::Display, str::Chars};
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ pub enum TokenKind {
 
     Notetype(Option<String>),
     CardField(String),
-    FieldSeparator,
+    FieldSeparator { overwrite: bool },
 
     BeginCommand,
     EndCommand,
@@ -127,12 +127,21 @@ impl Keyword {
     }
 }
 
-fn is_end_cardfield(current_char: char, next_char: char, field_separator: char) -> bool {
-    let card_type = current_char.is_whitespace() && next_char == '#';
-    let end_field = next_char == field_separator;
-    let begin_command = next_char == '>' && current_char == '\n';
-    let is_eof = next_char == '\0';
-    card_type || end_field || begin_command || is_eof
+fn is_end_cardfield(current_char: char, chars: &[char], field_separator: char) -> bool {
+    let (fst, snd, trd) = match chars {
+        [fst, snd, trd] => (*fst, *snd, *trd),
+        _ => unreachable!(),
+    };
+    let card_type = current_char == '\n' && fst == '#';
+    let end_field = fst == field_separator;
+    let begin_command = fst == '>' && current_char == '\n';
+    let is_eof = fst == '\0';
+    let is_overwrite_field = fst == '<' && is_overwrite(field_separator, (snd, trd));
+    card_type || end_field || begin_command || is_eof || is_overwrite_field
+}
+
+fn is_overwrite(field_separator: char, (fst, snd): (char, char)) -> bool {
+    field_separator == fst && snd == '>'
 }
 
 impl<'a> Lexer<'a> {
@@ -166,7 +175,10 @@ impl<'a> Lexer<'a> {
             '=' if self.command_mode => TokenKind::Assignment,
 
             '"' => self.consume_string_literal(),
-            c if self.field_separator == c => TokenKind::FieldSeparator,
+            '<' if is_overwrite(self.field_separator, self.peak_two()) => {
+                self.consume_field_overwrite()
+            }
+            c if self.field_separator == c => TokenKind::FieldSeparator { overwrite: false },
             _ if self.command_mode => self.consume_ident(),
             _ => self.consume_cardfield(),
         };
@@ -185,16 +197,19 @@ impl<'a> Lexer<'a> {
         let ends_newline = self.current_char == '\n';
 
         self.remaining = self.chars.as_str().len();
-            //.graphemes(true).count();
+        //.graphemes(true).count();
         self.row = span.end_row + ends_newline as usize;
         self.col = if ends_newline { 1 } else { span.end_col + 1 };
     }
 
     fn get_span(&self, start_chars: Chars) -> Span {
         // Figure out unicode span shit.
-        let len = self.remaining - self.chars.as_str()
-            //.graphemes(true).count();
-            .len();
+        let len = self.remaining
+            - self
+                .chars
+                .as_str()
+                //.graphemes(true).count();
+                .len();
 
         let newlines = start_chars
             .clone()
@@ -230,6 +245,14 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn consume_field_overwrite(&mut self) -> TokenKind {
+        // Separator
+        self.bump();
+        // '>'
+        self.bump();
+        TokenKind::FieldSeparator { overwrite: true }
+    }
+
     fn consume_whitespace(&mut self) -> TokenKind {
         loop {
             if !self.peak().is_whitespace() {
@@ -245,6 +268,12 @@ impl<'a> Lexer<'a> {
         let mut c = self.bump().unwrap_or('\0');
 
         loop {
+            if c == '\\' {
+                c = self.bump().unwrap_or('\0');
+                buf.push(c);
+                self.bump();
+                continue;
+            }
             if c == '\0' || c == '"' {
                 break;
             }
@@ -261,7 +290,7 @@ impl<'a> Lexer<'a> {
 
         loop {
             buf.push(c);
-            if is_end_cardfield(c, self.peak(), self.field_separator) {
+            if is_end_cardfield(c, &self.peak_n(3), self.field_separator) {
                 break;
             }
             c = self.bump().unwrap_or('\0');
@@ -272,6 +301,19 @@ impl<'a> Lexer<'a> {
 
     fn peak(&self) -> char {
         self.chars.clone().next().unwrap_or('\0')
+    }
+
+    fn peak_two(&self) -> (char, char) {
+        let mut chars = self.chars.clone();
+        (chars.next().unwrap_or('\0'), chars.next().unwrap_or('\0'))
+    }
+
+    fn peak_n(&self, n: usize) -> Vec<char> {
+        let mut v = self.chars.clone().take(n).collect::<Vec<char>>();
+        while v.len() < n {
+            v.push('\0');
+        }
+        v
     }
 
     fn consume_ident(&mut self) -> TokenKind {
