@@ -19,6 +19,7 @@ type NFields = usize;
 pub struct Generator<'a> {
     parser: Parser<'a>,
 
+    path: PathBuf,
     current_header: HeaderBuilder,
     statements: BTreeMap<String, Rhs>,
     filemap: BTreeMap<Header, (NFields, Vec<Note>)>,
@@ -94,31 +95,31 @@ pub struct Header {
 
 impl Display for Header {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#deck: {}\n", self.deck)?;
-        write!(f, "#notetype: {}\n", self.notetype)?;
-        write!(f, "#html: {}\n", self.html)?;
+        write!(f, "#deck:{}\n", self.deck)?;
+        write!(f, "#notetype:{}\n", self.notetype)?;
+        write!(f, "#html:{}\n", self.html)?;
         self.columns.as_ref().and_then(|v| {
             write!(
                 f,
-                "#columns: {}\n",
+                "#columns:{}\n",
                 // TODO SHEEEEEEEEEEESH
                 v.join(&self.separator.to_string()).to_string()
             )
             .ok()
         });
-        write!(f, "#separator: {}\n", self.separator)?;
+        write!(f, "#separator:{}\n", self.separator)?;
         self.notetype_column
             .as_ref()
-            .map(|v| write!(f, "#notetype column: {}\n", v));
+            .map(|v| write!(f, "#notetype column:{}\n", v));
         self.deck_column
             .as_ref()
-            .map(|v| write!(f, "#deck column: {}\n", v));
+            .map(|v| write!(f, "#deck column:{}\n", v));
         self.tags_column
             .as_ref()
-            .map(|v| write!(f, "#tags column: {}\n", v));
+            .map(|v| write!(f, "#tags column:{}\n", v));
         self.guid_column
             .as_ref()
-            .map(|v| write!(f, "#guid column: {}\n", v));
+            .map(|v| write!(f, "#guid column:{}\n", v));
         Ok(())
     }
 }
@@ -204,9 +205,10 @@ impl From<ParseError> for GenerationError {
 type Result<T> = std::result::Result<T, GenerationError>;
 
 impl<'a> Generator<'a> {
-    pub fn new(src: &'a str, field_separator: char) -> Self {
+    pub fn new(src: &'a str, field_separator: char, path: PathBuf) -> Self {
         Self {
             parser: Parser::new(src, field_separator),
+            path,
             current_header: HeaderBuilder::default(),
             statements: BTreeMap::new(),
             filemap: BTreeMap::new(),
@@ -231,7 +233,7 @@ impl<'a> Generator<'a> {
 
     fn write_file(self) -> Result<()> {
         for (header, (n, notes)) in self.filemap {
-            let mut file = BufWriter::new(File::create(PathBuf::from(&header))?);
+            let mut file = BufWriter::new(File::create(self.path.clone().join(PathBuf::from(&header)))?);
             file.write(header.to_string().as_bytes())?;
             file.write(&[b'\n'])?;
 
