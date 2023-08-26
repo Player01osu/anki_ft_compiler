@@ -1,4 +1,7 @@
-use anki_ft_lexer::{Keyword, Lexer, Span, Token as LexerToken, TokenKind as LexerTokenKind, Literal};
+#![allow(dead_code)]
+use std::{error::Error, fmt::Display};
+
+use anki_ft_lexer::{Keyword, Lexer, Token as LexerToken, TokenKind as LexerTokenKind, Literal, span::Span};
 
 #[derive(Debug)]
 pub struct Parser<'a> {
@@ -11,8 +14,8 @@ pub struct Parser<'a> {
 
 #[derive(Debug)]
 pub struct Token {
-    kind: TokenKind,
-    span: Span,
+    pub kind: TokenKind,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -23,24 +26,24 @@ pub enum TokenKind {
     Notetype(Notetype),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Note {
-    fields: Vec<Field>,
-    notetype: Notetype,
-    span: Span,
+    pub fields: Vec<Field>,
+    pub notetype: Notetype,
+    pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field {
-    field: String,
-    separated: Option<Span>,
-    span: Span,
+    pub field: String,
+    pub separated: Option<Span>,
+    pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Notetype {
-    notetype: Option<String>,
-    span: Span,
+    pub notetype: Option<String>,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -52,12 +55,13 @@ pub enum Command {
 pub struct Let {
     lhs: Ident,
     rhs: Rhs,
+    pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Ident(String);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Rhs {
     Ident(Ident),
     Literal(Literal),
@@ -67,6 +71,31 @@ pub enum Rhs {
 pub enum ParseError {
     Unexpected(Span),
     EmptyNote(Span),
+}
+
+impl Note {
+    pub fn format(self, separator: char) -> String {
+        let mut buf = String::new();
+        for field in self.fields {
+            buf.push_str(field.field.as_str());
+            if field.separated.is_some() {
+                buf.push(separator);
+            }
+        }
+        buf
+    }
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::Unexpected(span) => write!(f, "{span}:Unexpect token"),
+            ParseError::EmptyNote(span) => write!(f, "{span}:Empty note"),
+        }
+    }
+}
+
+impl Error for ParseError {
 }
 
 type Result<T> = std::result::Result<T, ParseError>;
@@ -81,8 +110,8 @@ macro_rules! expect_lexer {
 }
 
 impl Let {
-    pub fn command(&self) -> (&str, String) {
-        (self.lhs.as_str(), self.rhs.as_str())
+    pub fn command(&self) -> (&str, Rhs) {
+        (self.lhs.as_str(), self.rhs.clone())
     }
 }
 
@@ -302,14 +331,14 @@ impl<'a> Parser<'a> {
 
         let end_command = expect_lexer!(self, LexerTokenKind::EndCommand);
 
-        let kind = TokenKind::Command(Command::Let(Let { lhs, rhs }));
-
         let span = Span {
             start_row: start_span.start_row,
             start_col: start_span.start_col,
             end_row: end_command.span.end_row,
             end_col: end_command.span.end_col,
         };
+
+        let kind = TokenKind::Command(Command::Let(Let { lhs, rhs, span }));
 
         Ok(Token { kind, span })
     }

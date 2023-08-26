@@ -1,4 +1,50 @@
-> let deck = "0::Sentence Cards";
-> let notetype = My_Sentence_Japanese;
+> let deck = Sugma;
+#[hello nuts]
+
+sugam
+
+> let default_card = Basic;
+> let deck = example_deck;
+> let default_tags = Cool_Tags;
+
+#[Basic]
+This is an example of a basic card type; It also has a field for the back;
+You_Can_Put_Tags Here As_well
+
+
+> let deck = fjosi;
+
+#[Cloze]
+Clozes work in a similar way {c1:Word}; The back can be filled;
+
+#[Cloze]
+or empty {c1:Word};;
+
+#[Basic_Reverse]
+White space and newlines are
+handled
+
+correctly; And work
+
+as expected;
+
 #[]
-unrelated, irrelevant;それらも;関係[かんけい]ない;;[sound:rU6LpIAz3cUb7oNLnC0uVpSXu3P4oxTqAuek9lLzNBoLN6exq8pcgejMRLWCbLwp.mp3];<img src="wYYvehEfnw6d8Zx4zAbhTao5lIBh8C42gyriIdNotRE3aHnLyM9hoLT0CiwA9lS7.jpg">;
+Default card types are available through empty #[];;
+
+#[Four_Field_Card_Type]
+Multiple fields are handled as expected;
+Field two;
+Field three;
+Field four;
+Tags Also_newlines_after_semi-colons_are_removed_at_compile_time
+
+#[]
+You can overwrite tags as well;
+Default tags will not be applied<;>
+Tag_one
+
+> let default_card = Cloze;
+
+#[]
+Statements are defined {c1:procedurally}; Meaning values can be redefined in
+later parts of the file;
