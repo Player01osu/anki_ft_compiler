@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use std::{error::Error, fmt::Display};
+use std::{error::Error, fmt::Display, fmt::Write, str::FromStr};
 
 use anki_ft_lexer::{Keyword, Lexer, Token as LexerToken, TokenKind as LexerTokenKind, Literal, span::Span};
 
@@ -40,7 +40,13 @@ pub struct Field {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+impl Field {
+    pub fn sanitize_field(&self) -> String {
+        self.field.replace('\n', "<br>")
+    }
+}
+
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Notetype {
     pub notetype: Option<String>,
     pub span: Span,
@@ -70,16 +76,79 @@ pub enum Rhs {
 #[derive(Debug)]
 pub enum ParseError {
     Unexpected(Span),
+    BadSeparator(Span, String),
     EmptyNote(Span),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Separator {
+    Comma,
+    Semicolon,
+    Tab,
+    Space,
+    Pipe,
+    Colon,
+}
+
+impl FromStr for Separator {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "Comma" => Ok(Self::Comma),
+            "Semicolon" => Ok(Self::Semicolon),
+            "Tab" => Ok(Self::Tab),
+            "Space" => Ok(Self::Space),
+            "Pipe" => Ok(Self::Pipe),
+            "Colon" => Ok(Self::Colon),
+            _ => Err(s.to_string()),
+        }
+    }
+}
+
+impl Display for Separator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Separator::Comma => write!(f, "Comma"),
+            Separator::Semicolon => write!(f, "Semicolon"),
+            Separator::Tab => write!(f, "Tab"),
+            Separator::Space => write!(f, "Space"),
+            Separator::Pipe => write!(f, "Pipe"),
+            Separator::Colon => write!(f, "Colon"),
+        }
+    }
+}
+
+impl Separator {
+    pub fn as_char(&self) -> char {
+        match self {
+            Separator::Comma => ',',
+            Separator::Semicolon => ';',
+            Separator::Tab => '\t',
+            Separator::Space => ' ',
+            Separator::Pipe => '|',
+            Separator::Colon => ':',
+        }
+    }
+}
+
+pub const SEPARATORS: &'static str = "
+    \"Comma\",
+    \"Semicolon\",
+    \"Tab\",
+    \"Space\",
+    \"Pipe\",
+    \"Colon\",
+";
+
 impl Note {
-    pub fn format(self, separator: char) -> String {
+    pub fn format(self, deck: &str, notetype: &str, separator: Separator) -> String {
         let mut buf = String::new();
+        write!(&mut buf, "{deck}{separator}{notetype}{separator}", separator = separator.as_char()).unwrap();
         for field in self.fields {
-            buf.push_str(field.field.as_str());
+            buf.push_str(field.sanitize_field().as_str());
             if field.separated.is_some() {
-                buf.push(separator);
+                buf.push(separator.as_char());
             }
         }
         buf
@@ -91,6 +160,8 @@ impl Display for ParseError {
         match self {
             ParseError::Unexpected(span) => write!(f, "{span}:Unexpect token"),
             ParseError::EmptyNote(span) => write!(f, "{span}:Empty note"),
+            ParseError::BadSeparator(span, s) => write!(f, "{span}:Bad Separator: \"{s}\"
+Expected: {}", SEPARATORS),
         }
     }
 }

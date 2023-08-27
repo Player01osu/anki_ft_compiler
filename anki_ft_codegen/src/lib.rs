@@ -1,36 +1,41 @@
+#![allow(dead_code)]
 use std::{
     collections::BTreeMap,
     error::Error,
     fmt::Display,
     fs::File,
-    hash::{Hash, Hasher},
     io::{BufWriter, Write},
     path::PathBuf,
 };
 
 use anki_ft_lexer::span::Span;
-use anki_ft_parse::{
-    Command, Let, Note, Notetype, ParseError, Parser, Rhs, TokenKind,
-};
+use anki_ft_parse::{Command, Let, Note, ParseError, Parser, Rhs, Separator, TokenKind};
 
 type NFields = usize;
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct NoteDeck {
+    notetype: String,
+    deck: String,
+}
 
 #[derive(Debug)]
 pub struct Generator<'a> {
     parser: Parser<'a>,
+    warnings: Vec<String>,
 
     path: PathBuf,
-    current_header: HeaderBuilder,
+    header: Header,
+    notedeck_map: BTreeMap<NoteDeck, (NFields, Vec<Note>)>,
     statements: BTreeMap<String, Rhs>,
-    filemap: BTreeMap<Header, (NFields, Vec<Note>)>,
 }
 
 #[derive(Debug, Clone)]
-pub struct HeaderBuilder {
+pub struct Header {
     deck: Option<String>,
     notetype: Option<String>,
-    separator: Option<char>,
-    html: Option<bool>,
+    separator: Separator,
+    html: bool,
     columns: Option<Vec<String>>,
     notetype_column: Option<usize>,
     deck_column: Option<usize>,
@@ -38,39 +43,13 @@ pub struct HeaderBuilder {
     guid_column: Option<usize>,
 }
 
-impl HeaderBuilder {
-    pub fn build(&mut self, note_span: Span, notetype: &Notetype) -> Result<Header> {
-        let header = Header {
-            deck: self.deck.clone().ok_or(GenerationError::MissingHeader(
-                note_span,
-                MissingHeader::Deck,
-            ))?,
-            notetype: match notetype.notetype {
-                Some(ref notetype) => notetype.clone(),
-                None => self.notetype.clone().ok_or(GenerationError::MissingHeader(
-                    note_span,
-                    MissingHeader::Notetype,
-                ))?,
-            },
-            separator: self.separator.unwrap_or(';'),
-            html: self.html.unwrap_or(true),
-            columns: self.columns.clone(),
-            notetype_column: self.notetype_column,
-            deck_column: self.deck_column,
-            tags_column: self.tags_column,
-            guid_column: self.guid_column,
-        };
-        Ok(header)
-    }
-}
-
-impl Default for HeaderBuilder {
+impl Default for Header {
     fn default() -> Self {
-        HeaderBuilder {
+        Header {
             deck: None,
             notetype: None,
-            separator: None,
-            html: None,
+            separator: Separator::Semicolon,
+            html: true,
             columns: None,
             notetype_column: None,
             deck_column: None,
@@ -80,72 +59,28 @@ impl Default for HeaderBuilder {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialOrd, PartialEq, Hash)]
-pub struct Header {
-    deck: String,
-    notetype: String,
-    separator: char,
-    html: bool,
-    columns: Option<Vec<String>>,
-    notetype_column: Option<usize>,
-    deck_column: Option<usize>,
-    tags_column: Option<usize>,
-    guid_column: Option<usize>,
-}
-
 impl Display for Header {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#deck:{}\n", self.deck)?;
-        write!(f, "#notetype:{}\n", self.notetype)?;
-        write!(f, "#html:{}\n", self.html)?;
+        writeln!(f, "#html:{}", self.html)?;
         self.columns.as_ref().and_then(|v| {
-            write!(
+            writeln!(
                 f,
-                "#columns:{}\n",
+                "#columns:{}",
                 // TODO SHEEEEEEEEEEESH
                 v.join(&self.separator.to_string()).to_string()
             )
             .ok()
         });
-        write!(f, "#separator:{}\n", self.separator)?;
+        writeln!(f, "#separator:{}", self.separator)?;
         self.notetype_column
             .as_ref()
-            .map(|v| write!(f, "#notetype column:{}\n", v));
-        self.deck_column
-            .as_ref()
-            .map(|v| write!(f, "#deck column:{}\n", v));
-        self.tags_column
-            .as_ref()
-            .map(|v| write!(f, "#tags column:{}\n", v));
+            .map(|v| writeln!(f, "#notetype column:{}", v));
         self.guid_column
             .as_ref()
-            .map(|v| write!(f, "#guid column:{}\n", v));
+            .map(|v| writeln!(f, "#guid column:{}", v));
+        writeln!(f, "#deck column:1")?;
+        writeln!(f, "#notetype column:2")?;
         Ok(())
-    }
-}
-
-impl From<&Header> for PathBuf {
-    fn from(header: &Header) -> PathBuf {
-        use std::collections::hash_map::DefaultHasher;
-
-        let mut hasher = DefaultHasher::new();
-        header.hash(&mut hasher);
-        format!(
-            "{}_{:x}.txt",
-            header.notetype.to_lowercase().replace([' ', '\n'], "-"),
-            hasher.finish()
-        )
-        .into()
-    }
-}
-
-fn single_char(s: &str, span: Span) -> Result<char> {
-    match s.as_bytes() {
-        [b] => Ok(*b as char),
-        _ => Err(GenerationError::Other(
-            span,
-            String::from("Separator character must be single char"),
-        )),
     }
 }
 
@@ -157,7 +92,8 @@ fn into_bool(s: &str, span: Span) -> Result<bool> {
 #[derive(Debug)]
 pub enum GenerationError {
     ParseError(ParseError),
-    MissingHeader(Span, MissingHeader),
+    MissingHeader(MissingHeader),
+    BadSeparator(Span, String),
     IOError(std::io::Error),
     Other(Span, String),
 }
@@ -190,8 +126,9 @@ impl Display for GenerationError {
         match self {
             Self::ParseError(e) => e.fmt(f),
             Self::IOError(e) => e.fmt(f),
-            Self::MissingHeader(span, s) => write!(f, "{span}: {s}"),
+            Self::MissingHeader(s) => write!(f, "{s}"),
             Self::Other(span, s) => write!(f, "{span}: {s}"),
+            Self::BadSeparator(span, s) => write!(f, "{span}: {s}"),
         }
     }
 }
@@ -208,14 +145,15 @@ impl<'a> Generator<'a> {
     pub fn new(src: &'a str, field_separator: char, path: PathBuf) -> Self {
         Self {
             parser: Parser::new(src, field_separator),
+            warnings: vec![],
             path,
-            current_header: HeaderBuilder::default(),
+            header: Header::default(),
             statements: BTreeMap::new(),
-            filemap: BTreeMap::new(),
+            notedeck_map: BTreeMap::new(),
         }
     }
 
-    pub fn generate(mut self) -> Result<()> {
+    pub fn generate(mut self) -> Result<Vec<String>> {
         loop {
             let token = match self.parser.next_token()? {
                 Some(t) => t,
@@ -231,30 +169,32 @@ impl<'a> Generator<'a> {
         self.write_file()
     }
 
-    fn write_file(self) -> Result<()> {
-        for (header, (n, notes)) in self.filemap {
-            let mut file = BufWriter::new(File::create(self.path.clone().join(PathBuf::from(&header)))?);
-            file.write(header.to_string().as_bytes())?;
-            file.write(&[b'\n'])?;
-
+    fn write_file(self) -> Result<Vec<String>> {
+        let mut file = BufWriter::new(File::create(&self.path)?);
+        let header = self.header;
+        let mut warnings = self.warnings;
+        file.write(header.to_string().as_bytes())?;
+        file.write(&[b'\n'])?;
+        for (NoteDeck { deck, notetype }, (n, notes)) in self.notedeck_map {
             for note in notes {
                 if note.fields.len() != n {
-                    println!(
-                        "{}:WARNING:Note lengths do not match: {} {}",
-                        note.span,
-                        note.fields.len(),
-                        n
-                    );
+                    warnings.push(format!(
+                        "{span}:WARNING:Note lengths do not match:
+Expect: {expect}
+Got: {got}",
+                        span = note.span,
+                        expect = n,
+                        got = note.fields.len()
+                    ));
                 }
 
-                file.write(note.format(header.separator).as_bytes())?;
+                file.write(note.format(&deck, &notetype, header.separator).as_bytes())?;
                 file.write(&[b'\n'])?;
             }
-
-            file.flush()?;
         }
+        file.flush()?;
 
-        Ok(())
+        Ok(warnings)
     }
 
     fn generate_cmd(&mut self, cmd: Command) -> Result<()> {
@@ -265,12 +205,25 @@ impl<'a> Generator<'a> {
 
     fn generate_note(&mut self, note: Note) -> Result<()> {
         let n_fields = note.fields.len();
-        let header = self.current_header.build(note.span, &note.notetype)?;
+        let notetype = match note.notetype.notetype {
+            Some(ref notetype) => notetype.clone(),
+            None => self
+                .header
+                .notetype
+                .clone()
+                .ok_or(GenerationError::MissingHeader(MissingHeader::Notetype))?,
+        };
+        let deck = self
+            .header
+            .deck
+            .clone()
+            .ok_or(GenerationError::MissingHeader(MissingHeader::Deck))?;
 
-        self.filemap
-            .entry(header)
+        self.notedeck_map
+            .entry(NoteDeck { notetype, deck })
             .and_modify(|(_, v)| v.push(note.clone()))
             .or_insert((n_fields, vec![note]));
+
         Ok(())
     }
 
@@ -278,12 +231,15 @@ impl<'a> Generator<'a> {
         let (lhs, rhs) = v.command();
 
         match lhs {
-            "deck" => self.current_header.deck = Some(rhs.as_str()),
-            "notetype" | "default_card" => self.current_header.notetype = Some(rhs.as_str()),
+            "deck" => self.header.deck = Some(rhs.as_str()),
+            "notetype" | "default_card" => self.header.notetype = Some(rhs.as_str()),
             "separator" => {
-                self.current_header.separator = Some(single_char(&rhs.as_str(), v.span)?)
+                self.header.separator = rhs
+                    .as_str()
+                    .parse::<Separator>()
+                    .map_err(|e| ParseError::BadSeparator(v.span, e))?
             }
-            "html" => self.current_header.html = Some(into_bool(&rhs.as_str(), v.span)?),
+            "html" => self.header.html = into_bool(&rhs.as_str(), v.span)?,
             // TODO
             //"columns" => self.current_header.columns = Some(rhs.as_str()),
             //"notetype_column" => self.current_header.notetype_column = Some(rhs.as_str()),

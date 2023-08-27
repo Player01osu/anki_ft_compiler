@@ -1,4 +1,4 @@
-use std::{env::args, fs::File, io::{Read, stdin}};
+use std::{env::args, fs::File, io::{Read, stdin}, path::PathBuf};
 
 use anki_ft_codegen::Generator;
 use anki_ft_lexer::{Lexer, TokenKind as LexerTokenKind};
@@ -8,11 +8,11 @@ fn main() {
     let mut args = args();
     args.next();
     let filename = args.next().unwrap_or("test3.ankift".to_string());
-    let mut f = File::open(filename).unwrap();
+    let mut f = File::open(&filename).unwrap();
     let mut test = String::new();
     f.read_to_string(&mut test).unwrap();
 
-    let generator = Generator::new(&test, ';');
+    let generator = Generator::new(&test, ';', PathBuf::from(filename));
     generator.generate().unwrap();
 
     //let mut lexer = Lexer::new(&test, ';');

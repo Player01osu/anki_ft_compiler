@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Span {
     pub start_row: usize,
     pub start_col: usize,
