@@ -1,73 +1,92 @@
 
 # Basic Idea
 
-  This is going to be a relatively simple compiler for the .nanki filetype. the
-  basic idea is that the anki notes are going to be placed into this file, where
-  it'll parsed and compiled into multiple anki compatable .txt files (This may
-  change if I can find a better way of importing).
+  Simple transpiler for ankift filetype. Generates `.txt` files (csv style)
+  that can be directly imported to anki.
 
 # Syntax
 
 ```
--- Double hyphens serve as single line comments
-
-> let default_card = Basic;
-> let deck = example_deck;
-> let default_tags = Cool_Tags;
-
---[[
-And block comments are done with double hyphens followed by double brackets.
---]]
+> let deck = "1::UChem CH1150::Particles of Matter";
+> let notetype = "Basic (and reversed card)";
 
 #[Basic]
-This is an example of a basic card type; It also has a field for the back;
-You_Can_Put_Tags Here As_well
-
-#[Cloze]
-Clozes work in a similar way {c1:Word}; The back can be filled;
-
-#[Cloze]
-or empty {c1:Word};;
-
-#[Basic_Reverse]
-White space and newlines are
-handled
-
-correctly; And work
-
-as expected;
+Element/Pure Substance; A pure substance that cannot be separated into simpler substances by chemical or physical methods.;
 
 #[]
-Default card types are available through empty '#[]';;
-
-#[Four_Field_Card_Type]
-Multiple fields are handled as expected;
-Field two;
-Field three;
-Field four;
-Tags Also_newlines_after_semi-colons_are_removed_at_compile_time
+Compound;
+A pure substance containing two or more <b>different</b> elements that cannot be separated by physical methods.;
 
 #[]
-You can overwrite tags as well;
-Default tags will not be applied<;>
-Tag_one
-
-> let default_card = Cloze;
+Diatomic Molecule; Br, I, N, Cl, H, O, F;
 
 #[]
-Variables are defined {c1:procedurally}; Meaning values can be redefined in
-later parts of the file;
+Chemical Equation;
+Substances involved in a chemical reaction and include information about the phases of each substance;
+
+#[]
+Filtration;
+A process that separates solids and fluids in a mixure using a filter medium that has a structure through which only the fluid can pass.;
+
+#[]
+Chemical Reaction;
+The transformation of one or more substances into different substances;
+
+#[]
+Mixture;
+Composed of two or more substances that retain their own chemical identities;
+
+#[]
+Homogeneous Mixure;
+A mixure in which the components are distributed uniformily throughout.;
+
+#[]
+Heterogeneous Mixure;
+Not distributed uniformaly;
+
+#[]
+Law of Constant Composition;
+All samples of a compound contain the same elements combined in the same proportions.;
+
+#[]
+Intensive Properties;
+Properties that characterize matter independent of the quantity of it present.;
+
+#[]
+Extensive Properties;
+Properties that depend on how much substance is present.;
+
+#[]
+Physical Properties;
+Properties that can be observed or measured without changing the substance into another substance.;
+
+#[]
+Chemical Properties;
+Properties that can only be determined by reacting one substance with another.;
+
+#[Basic]
+Physical or chemical: Gold melts at 1064°C.;
+Physical;
+
+#[]
+Scientific Method;
+Approach to acquiring knowledge based on observation of phenomena, development of a testable hypothesis, and additional experiments that test the validity of the hypothesis.;
+
+> let deck = "1::UChem CH1150::Atoms, Ions, and Molecules";
+
+#[]
+JJ Thompson's Contribution;
+Used a cathode ray tube to discover an electron.
+
+Particles emitted from the CRT exhibited a charge and were affected by magnetic fields.
+He concluded that these particles are electrons.
+
+<img src=cathodray-experiment.png>;
+
+#[]
+Robert Millikan's Contribution;
+
+Used x-ray and oil drops to determine the charge of particles.
+
+<img src=millikan-oil-drop.png>;
 ```
-
-# Features
-
-  Multiple compilation flags:
-  - Seperator char (TODO)
-  - Default card (TODO)
-  - Deck (TODO)
-
-  Compilation warnings (TODO)
-
-  Syntax highlighting (TODO)
-
-  Neovim Plugin (TODO)
