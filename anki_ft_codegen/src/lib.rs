@@ -9,14 +9,15 @@ use std::{
 };
 
 use anki_ft_lexer::span::Span;
-use anki_ft_parse::{Command, Let, Note, ParseError, Parser, Rhs, Separator, TokenKind};
+use anki_ft_parse::{Command, Let, Note, ParseError, Parser, Rhs, Sanitizer, Separator, TokenKind};
 
 type NFields = usize;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct NoteDeck {
+pub struct NoteId {
     notetype: String,
     deck: String,
+    sanitizer: Sanitizer,
 }
 
 #[derive(Debug)]
@@ -26,7 +27,7 @@ pub struct Generator<'a> {
 
     path: PathBuf,
     header: Header,
-    notedeck_map: BTreeMap<NoteDeck, (NFields, Vec<Note>)>,
+    notedeck_map: BTreeMap<NoteId, (NFields, Vec<Note>)>,
     statements: BTreeMap<String, Rhs>,
 }
 
@@ -175,7 +176,15 @@ impl<'a> Generator<'a> {
         let mut warnings = self.warnings;
         file.write(header.to_string().as_bytes())?;
         file.write(&[b'\n'])?;
-        for (NoteDeck { deck, notetype }, (n, notes)) in self.notedeck_map {
+        for (
+            NoteId {
+                deck,
+                notetype,
+                sanitizer,
+            },
+            (n, notes),
+        ) in self.notedeck_map
+        {
             for note in notes {
                 if note.fields.len() != n {
                     warnings.push(format!(
@@ -188,7 +197,10 @@ Got: {got}",
                     ));
                 }
 
-                file.write(note.format(&deck, &notetype, header.separator).as_bytes())?;
+                file.write(
+                    note.format(sanitizer, &deck, &notetype, header.separator)
+                        .as_bytes(),
+                )?;
                 file.write(&[b'\n'])?;
             }
         }
@@ -219,8 +231,21 @@ Got: {got}",
             .clone()
             .ok_or(GenerationError::MissingHeader(MissingHeader::Deck))?;
 
+        let sanitizer = Sanitizer {
+            ignore_newlines: self
+                .statements
+                .get("ignore_newlines")
+                .map(|v| v.as_str().parse::<bool>())
+                .unwrap_or(Ok(false))
+                .map_err(|e| GenerationError::Other(note.span, e.to_string()))?,
+        };
+
         self.notedeck_map
-            .entry(NoteDeck { notetype, deck })
+            .entry(NoteId {
+                notetype,
+                deck,
+                sanitizer,
+            })
             .and_modify(|(_, v)| v.push(note.clone()))
             .or_insert((n_fields, vec![note]));
 

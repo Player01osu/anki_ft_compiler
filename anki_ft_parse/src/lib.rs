@@ -40,9 +40,24 @@ pub struct Field {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Sanitizer {
+    pub ignore_newlines: bool,
+}
+
+impl Default for Sanitizer {
+    fn default() -> Self {
+        Self { ignore_newlines: Default::default() }
+    }
+}
+
 impl Field {
-    pub fn sanitize_field(&self) -> String {
-        self.field.replace('\n', "<br>")
+    pub fn sanitize_field(&self, sanitizer: Sanitizer) -> String {
+        if sanitizer.ignore_newlines {
+            self.field.replace('\n', " ")
+        } else {
+            self.field.replace('\n', "<br>")
+        }
     }
 }
 
@@ -142,11 +157,11 @@ pub const SEPARATORS: &'static str = "
 ";
 
 impl Note {
-    pub fn format(self, deck: &str, notetype: &str, separator: Separator) -> String {
+    pub fn format(self, sanitizer: Sanitizer, deck: &str, notetype: &str, separator: Separator) -> String {
         let mut buf = String::new();
         write!(&mut buf, "{deck}{separator}{notetype}{separator}", separator = separator.as_char()).unwrap();
         for field in self.fields {
-            buf.push_str(field.sanitize_field().as_str());
+            buf.push_str(field.sanitize_field(sanitizer).as_str());
             if field.separated.is_some() {
                 buf.push(separator.as_char());
             }
