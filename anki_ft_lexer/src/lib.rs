@@ -152,7 +152,9 @@ impl<'a> Lexer<'a> {
             None => return eof_token(),
         };
 
-        let kind = match c {
+        let kind =
+        match c {
+
             c if c.is_whitespace() => self.consume_whitespace(),
             '>' if self.prev_newline => self.begin_command(),
             '#' if self.is_notetype() => self.consume_notetype(),
@@ -160,7 +162,7 @@ impl<'a> Lexer<'a> {
             ';' if self.command_mode => self.end_command(),
             '=' if self.command_mode => TokenKind::Assignment,
 
-            '"' => self.consume_string_literal(),
+            '"' if self.command_mode => self.consume_string_literal(),
             '<' if is_overwrite(self.field_separator, self.peak_two()) => {
                 self.consume_field_overwrite()
             }
