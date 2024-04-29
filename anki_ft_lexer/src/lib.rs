@@ -187,7 +187,7 @@ impl<'a> Lexer<'a> {
 
         let kind = match c {
             c if c.is_whitespace() => self.consume_whitespace(),
-            '-' if self.peak_n(3) == ['-', '[', '['] => {
+            '-' if self.peak_n::<3>() == ['-', '[', '['] => {
                 self.consume_block_comment();
                 return self.next_token();
             }
@@ -307,7 +307,7 @@ impl<'a> Lexer<'a> {
 
         loop {
             buf.push(c);
-            if is_end_cardfield(c, &self.peak_n(3), self.field_separator) {
+            if is_end_cardfield(c, &self.peak_n::<3>(), self.field_separator) {
                 break;
             }
             c = self.bump().unwrap_or('\0');
@@ -325,12 +325,13 @@ impl<'a> Lexer<'a> {
         (chars.next().unwrap_or('\0'), chars.next().unwrap_or('\0'))
     }
 
-    fn peak_n(&self, n: usize) -> Vec<char> {
-        let mut v = self.chars.clone().take(n).collect::<Vec<char>>();
-        while v.len() < n {
-            v.push('\0');
+    fn peak_n<const N: usize>(&self) -> [char; N] {
+        let mut array = ['\0'; N];
+        let mut chars = self.chars.clone();
+        for v in &mut array {
+            *v = chars.next().unwrap_or('\0');
         }
-        v
+        array
     }
 
     fn consume_ident(&mut self) -> TokenKind {
