@@ -109,11 +109,8 @@ impl Keyword {
     }
 }
 
-fn is_end_cardfield(current_char: char, chars: &[char], field_separator: char) -> bool {
-    let (fst, snd, trd) = match chars {
-        [fst, snd, trd] => (*fst, *snd, *trd),
-        _ => unreachable!(),
-    };
+fn is_end_cardfield(current_char: char, chars: [char; 3], field_separator: char) -> bool {
+    let (fst, snd, trd) = (chars[0], chars[1], chars[2]);
     let card_type = current_char == '\n' && fst == '#';
     let end_field = fst == field_separator;
     let begin_command = fst == '>' && current_char == '\n';
@@ -307,7 +304,7 @@ impl<'a> Lexer<'a> {
 
         loop {
             buf.push(c);
-            if is_end_cardfield(c, &self.peak_n::<3>(), self.field_separator) {
+            if is_end_cardfield(c, self.peak_n::<3>(), self.field_separator) {
                 break;
             }
             c = self.bump().unwrap_or('\0');
