@@ -1,8 +1,7 @@
 -- Double hyphens serve as single line comments
 
 > let deck = Sugma;
-#[hello
-nuts]
+#[hello nuts]
 
 sugam
 #[]
