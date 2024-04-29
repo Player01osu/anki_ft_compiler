@@ -147,6 +147,36 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn consume_line_comment(&mut self) {
+        loop {
+            let c = self.peak();
+            if c == '\n' || c == '\0' {
+                break;
+            }
+            self.bump();
+        }
+        self.bump();
+    }
+
+    fn consume_block_comment(&mut self) {
+        const DFA: &str = "--]]";
+        let start = DFA.chars();
+
+        let mut dfa = start.clone();
+        loop {
+            let c = self.peak();
+            if c == '\0' { break; }
+            match dfa.next() {
+                Some(next) if next != c => {
+                    dfa = start.clone();
+                }
+                None => break,
+                _ => (),
+            }
+            self.bump();
+        }
+    }
+
     pub fn next_token(&mut self) -> Token {
         let start_row = self.row;
         let start_col = self.col;
@@ -157,6 +187,14 @@ impl<'a> Lexer<'a> {
 
         let kind = match c {
             c if c.is_whitespace() => self.consume_whitespace(),
+            '-' if self.peak_n(3) == ['-', '[', '['] => {
+                self.consume_block_comment();
+                return self.next_token();
+            }
+            '-' if self.peak() == '-' => {
+                self.consume_line_comment();
+                return self.next_token();
+            }
             '>' if self.prev_newline => self.begin_command(),
             '#' if self.is_notetype() => self.consume_notetype(),
 
