@@ -1,10 +1,8 @@
 #![allow(dead_code)]
 pub mod span;
 
-use std::{fmt::Display, str::Chars};
 use span::Span;
-#[allow(unused_imports)]
-use unicode_segmentation::UnicodeSegmentation;
+use std::{fmt::Display, str::Chars};
 
 #[derive(Debug)]
 pub struct Token {
@@ -70,6 +68,8 @@ pub struct Lexer<'a> {
 
     field_separator: char,
 
+    row_prev: usize,
+    col_prev: usize,
     row: usize,
     col: usize,
 }
@@ -140,21 +140,22 @@ impl<'a> Lexer<'a> {
             prev_newline: true,
             command_mode: false,
             current_char: '\0',
+            row_prev: 0,
+            col_prev: 0,
             row: 1,
             col: 1,
         }
     }
 
     pub fn next_token(&mut self) -> Token {
-        let start_chars = self.chars.clone();
+        let start_row = self.row;
+        let start_col = self.col;
         let c = match self.bump() {
             Some(c) => c,
             None => return eof_token(),
         };
 
-        let kind =
-        match c {
-
+        let kind = match c {
             c if c.is_whitespace() => self.consume_whitespace(),
             '>' if self.prev_newline => self.begin_command(),
             '#' if self.is_notetype() => self.consume_notetype(),
@@ -176,8 +177,8 @@ impl<'a> Lexer<'a> {
             self.prev_newline = true;
         }
 
-        let span = self.get_span(start_chars);
-        self.reset_pos(span);
+        let span = self.get_span(start_row, start_col);
+        self.reset_pos();
 
         Token { kind, span }
     }
@@ -210,55 +211,16 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn reset_pos(&mut self, span: Span) {
-        let ends_newline = self.current_char == '\n';
-
+    fn reset_pos(&mut self) {
         self.remaining = self.chars.as_str().len();
-        //.graphemes(true).count();
-        self.row = span.end_row + ends_newline as usize;
-        self.col = if ends_newline { 1 } else { span.end_col + 1 };
     }
 
-    fn get_span(&self, start_chars: Chars) -> Span {
-        // Figure out unicode span shit.
-        let len = self.remaining
-            - self
-                .chars
-                .as_str()
-                //.graphemes(true).count();
-                .len();
-
-        let newlines = start_chars
-            .clone()
-            //.as_str()
-            //.graphemes(true)
-            .take(len)
-            .filter(|c| *c == '\n')
-            .count();
-        let ends_newline = self.current_char == '\n';
-
-        let start_row = self.row;
-        let start_col = self.col;
-        let end_row = match newlines {
-            0 => start_row,
-            _ => start_row + newlines - ends_newline as usize,
-        };
-        let end_col = match newlines {
-            0 => start_col + len,
-            1 if ends_newline => start_col + len,
-            _ => start_chars
-                .clone()
-                //.as_str()
-                //.graphemes(true)
-                .take(len)
-                .fold(start_col, |acc, c| if c == '\n' { 1 } else { acc + 1 }),
-        } - 1;
-
+    fn get_span(&self, start_row: usize, start_col: usize) -> Span {
         Span {
             start_row,
             start_col,
-            end_row,
-            end_col,
+            end_row: self.row_prev,
+            end_col: self.col_prev,
         }
     }
 
@@ -389,6 +351,15 @@ impl<'a> Lexer<'a> {
     fn bump(&mut self) -> Option<char> {
         let c = self.chars.next();
         self.current_char = c.unwrap_or('\0');
+        self.row_prev = self.row;
+        self.col_prev = self.col;
+
+        if self.current_char == '\n' {
+            self.row += 1;
+            self.col = 1;
+        } else {
+            self.col += 1;
+        }
         c
     }
 }

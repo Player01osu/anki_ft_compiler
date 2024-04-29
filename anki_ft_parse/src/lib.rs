@@ -417,13 +417,7 @@ impl<'a> Parser<'a> {
 
         let end_command = expect_lexer!(self, LexerTokenKind::EndCommand);
 
-        let span = Span {
-            start_row: start_span.start_row,
-            start_col: start_span.start_col,
-            end_row: end_command.span.end_row,
-            end_col: end_command.span.end_col,
-        };
-
+        let span = start_span.join(end_command.span);
         let kind = TokenKind::Command(Command::Let(Let { lhs, rhs, span }));
 
         Ok(Token { kind, span })
