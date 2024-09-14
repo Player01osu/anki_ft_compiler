@@ -28,7 +28,7 @@ pub struct Generator<'a> {
     path: PathBuf,
     header: Header,
     notedeck_map: BTreeMap<NoteId, (NFields, Vec<Note>)>,
-    statements: BTreeMap<String, Rhs>,
+    statements: BTreeMap<Box<str>, Rhs>,
 }
 
 #[derive(Debug, Clone)]
@@ -273,7 +273,7 @@ Got: {got}",
             //"guid_column" => self.current_header.guid_column = Some(rhs.as_str()),
             _ => {
                 self.statements
-                    .entry(lhs.to_string())
+                    .entry(lhs.into())
                     .and_modify(|v| *v = rhs.clone())
                     .or_insert(rhs);
             }
