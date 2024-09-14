@@ -36,6 +36,8 @@ pub enum TokenKind {
     CardField(String),
     FieldSeparator { overwrite: bool },
 
+    VarBlock(String),
+
     BeginCommand,
     EndCommand,
     Assignment,
@@ -215,7 +217,7 @@ impl<'a> Lexer<'a> {
         let span = self.get_span(start_row, start_col);
         self.reset_pos();
 
-        Token { kind, span }
+        dbg!(Token { kind, span })
     }
 
     fn consume_number_literal(&mut self) -> TokenKind {
