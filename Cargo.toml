@@ -6,4 +6,5 @@ members = [
     "anki_ft_parse",
     "anki_ft_codegen",
     "anki_ftc",
+    "aftc",
 ]

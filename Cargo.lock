@@ -3,6 +3,13 @@
 version = 3
 
 [[package]]
+name = "aftc"
+version = "0.0.0"
+dependencies = [
+ "lexopt",
+]
+
+[[package]]
 name = "anki_ft_codegen"
 version = "0.1.0"
 dependencies = [
@@ -69,6 +76,12 @@ name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
+
+[[package]]
+name = "lexopt"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baff4b617f7df3d896f97fe922b64817f6cd9a756bb81d40f8883f2f66dcb401"
 
 [[package]]
 name = "proc-macro2"
