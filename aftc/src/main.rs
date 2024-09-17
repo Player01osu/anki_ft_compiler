@@ -1451,6 +1451,14 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
         }
 
         if !ast.parser.errors.is_empty() {
+            drop(output);
+            match fs::remove_file(output_name) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("Could not remove output file:{e}");
+                    exit(1);
+                }
+            }
             return Err(());
         }
 
