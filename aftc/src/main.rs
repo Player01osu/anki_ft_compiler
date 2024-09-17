@@ -1337,7 +1337,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                         }
                         Entry::Occupied(v) => {
                             if *v.get() != note.fields.len() {
-                                eprintln!("{path}:{}:{}:Field lengths do not match for \"{notetype}\" notetype, first got {} fields, then got {} fields", node.span.row_start, node.span.row_end, *v.get(), note.fields.len());
+                                eprintln!("{path}:{}:{}:WARNING:Field lengths do not match for \"{notetype}\" notetype, first got {} fields, then got {} fields", node.span.row_start, node.span.row_end, *v.get(), note.fields.len());
                             }
                         }
                     }
@@ -1353,7 +1353,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                             }
                         }
                         None => {
-                            eprintln!("\"deck\" metadata unset, set the deck before adding notes (ie: > deck = \"My Deck Here\")");
+                            eprintln!("{path}:{}:{}:ERROR:\"deck\" metadata unset, set the deck before adding notes (ie: > deck = \"My Deck Here\")", node.span.row_start, node.span.col_start);
                             return Err(());
                         }
                     }
@@ -1438,7 +1438,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                             ignore_newlines = b;
                         }
                         Stmt::BadMetaAssign(s) => {
-                            eprintln!("{path}:{}:{}:Attempt to assign unknown metadata:{s}", node.span.row_start, node.span.col_start);
+                            eprintln!("{path}:{}:{}:ERROR:Attempt to assign unknown metadata:{s}", node.span.row_start, node.span.col_start);
                             return Err(());
                         }
                     }
@@ -1447,7 +1447,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
         }
 
         for (span, error) in &ast.parser.errors {
-            eprintln!("{path}:{}:{}:{error}", span.row_start, span.col_start);
+            eprintln!("{path}:{}:{}:ERROR:{error}", span.row_start, span.col_start);
         }
 
         if !ast.parser.errors.is_empty() {
