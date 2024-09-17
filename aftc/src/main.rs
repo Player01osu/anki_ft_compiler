@@ -2,13 +2,10 @@
 
 use std::fs;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::Cursor;
 use std::io::Write;
 use std::io::SeekFrom;
 use std::io::Seek;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::hash::DefaultHasher;
 use std::time::SystemTime;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
@@ -16,8 +13,9 @@ use std::env;
 use std::process::exit;
 use std::str::Chars;
 use lexopt::Arg;
+use sha2::{Sha256, Digest};
 
-#[derive(Clone, Copy, Default, Debug, Hash)]
+#[derive(Clone, Copy, Default, Debug)]
 struct Span {
     row_start: usize,
     col_start: usize,
@@ -41,7 +39,7 @@ impl std::fmt::Display for Span {
 struct Lexer<'a> {
     src: &'a str,
     cursor: Chars<'a>,
-    file_write: Option<BufWriter<File>>,
+    file_write: Option<Cursor<Vec<u8>>>,
 
     separator: char,
 
@@ -186,7 +184,12 @@ impl Span {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(src: &'a str, file_write: Option<BufWriter<File>>) -> Self {
+    pub fn new(src: &'a str, enable_writer: bool) -> Self {
+        let file_write = if enable_writer {
+            Some(Cursor::new(vec![]))
+        } else {
+            None
+        };
         Lexer {
             src,
             cursor: src.chars(),
@@ -212,6 +215,7 @@ impl<'a> Lexer<'a> {
                         Ok(_) => (),
                         Err(e) => {
                             eprintln!("Could not write to buffer:{e}");
+                            exit(1);
                         }
                     }
                 }
@@ -226,6 +230,7 @@ impl<'a> Lexer<'a> {
                         Ok(_) => (),
                         Err(e) => {
                             eprintln!("Could not write to buffer:{e}");
+                            exit(1);
                         }
                     }
                 }
@@ -322,6 +327,7 @@ impl<'a> Lexer<'a> {
                 match f.seek(SeekFrom::Start(pos)) {
                     Err(e) => {
                         eprintln!("Could not seek to position:{e}");
+                        exit(1);
                     }
                     _ => {
                     }
@@ -641,7 +647,7 @@ impl<'a> Parser<'a> {
         self.warnings.push((span, msg.into()))
     }
 
-    pub fn new(src: &'a str, file_write: Option<BufWriter<File>>) -> Self {
+    pub fn new(src: &'a str, enable_writer: bool) -> Self {
         let seed = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(t) => {
                 t.as_nanos()
@@ -653,7 +659,7 @@ impl<'a> Parser<'a> {
         };
 
         Parser {
-            lexer: Lexer::new(&src, file_write),
+            lexer: Lexer::new(&src, enable_writer),
             prev_token: None,
             mode: ParseMode::default(),
             nodes: vec![],
@@ -841,10 +847,16 @@ impl<'a> Parser<'a> {
             None => {
                 match &mut self.lexer.file_write {
                     Some(f) => {
-                        let mut state = DefaultHasher::new();
-                        state.write_u128(self.seed);
-                        start_span.hash(&mut state);
-                        let guid = format!("{:x}", state.finish());
+                        let mut hasher = Sha256::new();
+                        hasher.update(self.seed.to_le_bytes());
+                        hasher.update(start_span.row_start.to_le_bytes());
+                        hasher.update(start_span.col_start.to_le_bytes());
+                        hasher.update(start_span.row_end.to_le_bytes());
+                        hasher.update(start_span.col_end.to_le_bytes());
+                        let mut guid = String::new();
+                        for b in hasher.finalize() {
+                            guid.push_str(format!("{b:x}").as_str());
+                        }
                         match write!(f, "{}", guid) {
                             Ok(_) => {
                                 Some(guid.into())
@@ -946,13 +958,13 @@ impl<'a> Parser<'a> {
                 s
             }
             k => {
-                eprintln!("Expected value but got {:?}", k);
+                let msg = format!("Expected value but got {:?}", k);
+                self.push_err(tok.span, msg);
                 return None;
             }
         };
 
-        if !matches!(self.lexer.next_stmt(), Some(Token { kind: TokenKind::EndStmt, .. })) {
-            eprintln!("Expected ';' (end stmt)");
+        if !self.next_expect_kind(Lexer::next_stmt, &[TokenKind::EndStmt], "';' (end stmt)") {
             return None;
         }
 
@@ -975,13 +987,13 @@ impl<'a> Parser<'a> {
                 b
             }
             k => {
-                eprintln!("Expected value but got {:?}", k);
+                let msg = format!("Expected boolean but got {:?}", k);
+                self.push_err(tok.span, msg);
                 return None;
             }
         };
 
-        if !matches!(self.lexer.next_stmt(), Some(Token { kind: TokenKind::EndStmt, .. })) {
-            eprintln!("Expected ';' (end stmt)");
+        if !self.next_expect_kind(Lexer::next_stmt, &[TokenKind::EndStmt], "';' (end stmt)") {
             return None;
         }
 
@@ -989,40 +1001,28 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_let(&mut self) -> Option<Let> {
-        let mut tok = match self.lexer.next_stmt() {
-            Some(v) => {
-                v
-            }
-            None => {
-                eprintln!("Expected ident but got EOF");
-                return None;
-            }
-        };
+        let mut tok = self.next_token(Lexer::next_stmt, "ident")?;
 
         let lhs = match tok.kind {
             TokenKind::Ident(s) => {
                 s
             }
             k => {
-                eprintln!("Expected ident but got {:?}", k);
+                let msg = format!("Expected ident but got {:?}", k);
+                self.push_err(tok.span, msg);
                 return None;
             }
         };
 
-        if !matches!(self.lexer.next_stmt(), Some(Token { kind: TokenKind::Assignment, .. })) {
-            eprintln!("Expected '=' (assignment token)");
+        if !self.next_expect_kind(
+            Lexer::next_stmt,
+            &[TokenKind::Assignment],
+            "'=' (assignment token)"
+        ) {
             return None;
         }
 
-        tok = match self.lexer.next_stmt() {
-            Some(v) => {
-                v
-            }
-            None => {
-                eprintln!("Expected ident but got EOF");
-                return None;
-            }
-        };
+        let mut tok = self.next_token(Lexer::next_stmt, "ident")?;
 
         let rhs = match tok.kind {
             TokenKind::Ident(s) => {
@@ -1035,13 +1035,13 @@ impl<'a> Parser<'a> {
                 Value::Boolean(b)
             }
             k => {
-                eprintln!("Expected value but got {:?}", k);
+                let msg = format!("Expected value but got {:?}", k);
+                self.push_err(tok.span, msg);
                 return None;
             }
         };
 
-        if !matches!(self.lexer.next_stmt(), Some(Token { kind: TokenKind::EndStmt, .. })) {
-            eprintln!("Expected ';' (end stmt)");
+        if !self.next_expect_kind(Lexer::next_stmt, &[TokenKind::EndStmt], "';' (end stmt)") {
             return None;
         }
 
@@ -1143,8 +1143,8 @@ impl AST<'_> {
     }
 }
 
-fn parse_src(src: &str, file_write: Option<BufWriter<File>>) -> AST {
-    let mut parser = Parser::new(src, file_write);
+fn parse_src(src: &str, enable_writer: bool) -> AST {
+    let mut parser = Parser::new(src, enable_writer);
 
     AST {
         parser,
@@ -1188,17 +1188,24 @@ fn sanitize_field(field: &str, ignore_newlines: bool, separator: char) -> Box<st
         }
     }
 
-    let mut first_part = true;
-    for s_part in s_vec.iter().map(|s| s.trim()) {
-        if first_part {
-            first_part = false
-        } else {
-            s.push(' ');
+    if s_vec.is_empty() {
+        s.push('"');
+        s.into()
+    } else {
+        let mut field = String::new();
+        let mut first_part = true;
+        for s_part in s_vec.iter().map(|s| s.trim()) {
+            if first_part {
+                first_part = false
+            } else {
+                field.push(' ');
+            }
+            field.push_str(s_part);
         }
-        s.push_str(s_part);
+        field.push_str(&s);
+        field.push('"');
+        field.into()
     }
-    s.push('"');
-    s.into()
 }
 
 fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOptions) -> Result<(), ()> {
@@ -1277,20 +1284,20 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
             }
         };
 
-        let outfile = match options.stable_guid {
+        let (enable_writer, stable_path) = match options.stable_guid {
             StableGUIDOpt::None => {
-                None
+                (false, String::new())
             }
             StableGUIDOpt::Soft => {
                 let path = format!("{path}.stable");
-                Some(BufWriter::new(File::create(&path).unwrap()))
+                (true, path)
             }
             StableGUIDOpt::Hard => {
-                Some(BufWriter::new(File::create(&path).unwrap()))
+                (true, path.to_string())
             }
         };
 
-        let mut ast = parse_src(&src, outfile);
+        let mut ast = parse_src(&src, enable_writer);
         while let Ok(Some(node)) = ast.next_node() {
             match node.kind {
                 NodeKind::Note(note) => {
@@ -1439,20 +1446,31 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
             }
         }
 
+        for (span, error) in &ast.parser.errors {
+            eprintln!("{path}:{}:{}:{error}", span.row_start, span.col_start);
+        }
+
+        if !ast.parser.errors.is_empty() {
+            return Err(());
+        }
+
         if let Some(f) = &mut ast.parser.lexer.file_write {
             match f.flush() {
-                Ok(_) => (),
+                Ok(_) => {
+                    let mut stable_file = File::create(stable_path).unwrap();
+                    match stable_file.write(f.get_ref()) {
+                        Ok(_) => {
+                        }
+                        Err(e) => {
+                            eprintln!("Could not write to stable file:{e}");
+                            return Err(());
+                        }
+                    }
+                }
                 Err(e) => {
                     eprintln!("Could not flush buffer into file:{e}");
                 }
             }
-        }
-
-        for (span, error) in &ast.parser.errors {
-            eprintln!("{path}:{}:{}:{error}", span.row_start, span.col_start);
-        }
-        if !ast.parser.errors.is_empty() {
-            return Err(());
         }
     }
     Ok(())
