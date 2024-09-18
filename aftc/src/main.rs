@@ -951,6 +951,38 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_builtin_any(&mut self) -> Option<Box<str>> {
+        if !self.next_expect_kind(
+            Lexer::next_stmt,
+            &[TokenKind::Assignment],
+            "'=' (assignment token)"
+        ) {
+            return None;
+        }
+
+        let tok = self.next_token(Lexer::next_stmt, "value")?;
+
+        let rhs = match tok.kind {
+            TokenKind::SLiteral(s) => {
+                s
+            }
+            TokenKind::Boolean(b) => {
+                b.to_string().into()
+            }
+            k => {
+                let msg = format!("Expected value but got {:?}", k);
+                self.push_err(tok.span, msg);
+                return None;
+            }
+        };
+
+        if !self.next_expect_kind(Lexer::next_stmt, &[TokenKind::EndStmt], "';' (end stmt)") {
+            return None;
+        }
+
+        Some(rhs)
+    }
+
     fn parse_builtin_slit(&mut self) -> Option<Box<str>> {
         if !self.next_expect_kind(
             Lexer::next_stmt,
@@ -1130,7 +1162,8 @@ impl AST<'_> {
                         Stmt::IgnoreNewlines(self.parser.parse_builtin_boolean().ok_or(())?)
                     }
                     TokenKind::Ident(s) => {
-                        todo!()
+                        self.parser.parse_builtin_any().ok_or(())?;
+                        Stmt::BadMetaAssign(s)
                     }
                     k => {
                         let msg = format!("Unexpected token: {k:?}");
