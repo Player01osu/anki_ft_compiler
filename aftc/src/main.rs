@@ -8,6 +8,7 @@ use std::io::SeekFrom;
 use std::io::Seek;
 use std::time::SystemTime;
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::collections::btree_map::Entry;
 use std::env;
 use std::process::exit;
@@ -1252,13 +1253,16 @@ fn sanitize_field(field: &str, ignore_newlines: bool, separator: char) -> Box<st
 
 fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOptions) -> Result<(), ()> {
     let mut deck: Option<Box<str>> = None;
+    let mut deck_set: BTreeSet<Box<str>> = BTreeSet::new();
     let mut notetype_map: BTreeMap<Box<str>, usize> = BTreeMap::new();
+    let mut notetype_set: BTreeSet<Box<str>> = BTreeSet::new();
     let mut var_map: BTreeMap<Box<str>, Value> = BTreeMap::new();
     notetype_map.insert("Basic".into(), 2);
     notetype_map.insert("Basic (and reversed card)".into(), 2);
     notetype_map.insert("Cloze".into(), 2);
     let mut notetype: Box<str> = "Basic".into();
     let mut ignore_newlines = false;
+    let mut num_notes = 0;
 
     let mut output = match File::create(output_name) {
         Ok(v) => {
@@ -1343,6 +1347,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
         while let Ok(Some(node)) = ast.next_node() {
             match node.kind {
                 NodeKind::Note(note) => {
+                    num_notes += 1;
                     match note.guid {
                         Some(guid) => {
                             match write!(&mut output, "{guid};") {
@@ -1379,10 +1384,11 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                         }
                         Entry::Occupied(v) => {
                             if *v.get() != note.fields.len() {
-                                eprintln!("{path}:{}:{}:WARNING:Field lengths do not match for \"{notetype}\" notetype, first got {} fields, then got {} fields", node.span.row_start, node.span.row_end, *v.get(), note.fields.len());
+                                eprintln!("{path}:{}:{}:WARNING:Field lengths do not match for \"{notetype}\" notetype, first got {} fields, then got {} fields\n", node.span.row_start, node.span.row_end, *v.get(), note.fields.len());
                             }
                         }
                     }
+                    notetype_set.insert(notetype.clone());
 
                     match &deck {
                         Some(deck) => {
@@ -1393,9 +1399,10 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                                     return Err(());
                                 }
                             }
+                            deck_set.insert(deck.clone());
                         }
                         None => {
-                            eprintln!("{path}:{}:{}:ERROR:\"deck\" metadata unset, set the deck before adding notes (ie: > deck = \"My Deck Here\")", node.span.row_start, node.span.col_start);
+                            eprintln!("{path}:{}:{}:ERROR:\"deck\" metadata unset, set the deck before adding notes (ie: > deck = \"My Deck Here\")\n", node.span.row_start, node.span.col_start);
                             return Err(());
                         }
                     }
@@ -1480,7 +1487,8 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                             ignore_newlines = b;
                         }
                         Stmt::BadMetaAssign(s) => {
-                            eprintln!("{path}:{}:{}:ERROR:Attempt to assign unknown metadata:{s}", node.span.row_start, node.span.col_start);
+                            eprintln!("{path}:{}:{}:ERROR:Attempt to assign unknown metadata:\"{s}\"\n", node.span.row_start, node.span.col_start);
+                            eprintln!("  Try these instead: deck, notetype, separator, ignore_newlines");
                             return Err(());
                         }
                     }
@@ -1489,7 +1497,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
         }
 
         for (span, error) in &ast.parser.errors {
-            eprintln!("{path}:{}:{}:ERROR:{error}", span.row_start, span.col_start);
+            eprintln!("{path}:{}:{}:ERROR:{error}\n", span.row_start, span.col_start);
         }
 
         if !ast.parser.errors.is_empty() {
@@ -1523,6 +1531,13 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
             }
         }
     }
+
+    println!("Compilation information:");
+    println!("  note count:{num_notes}");
+    println!("  notetype count:{}", notetype_set.len());
+    println!("  deck count:{}", deck_set.len());
+    println!("  variable count:{}", var_map.len());
+
     Ok(())
 }
 
