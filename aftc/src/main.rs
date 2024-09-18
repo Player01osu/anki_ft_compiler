@@ -343,6 +343,10 @@ impl<'a> Lexer<'a> {
             if peak == self.separator { break; }
 
             match self.bump() {
+                Some('\\') if self.peak() == self.separator => {
+                    self.bump();
+                    s.push(self.separator);
+                }
                 Some(c) => {
                     s.push(c);
                 }
