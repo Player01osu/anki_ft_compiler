@@ -408,7 +408,12 @@ impl<'a> Lexer<'a> {
     fn end_token(&self, row_start: usize, col_start: usize, start_len: usize) -> (Span, usize) {
         let row_end = self.row_prev;
         let col_end = self.col_prev;
-        let span = Span { row_start, col_start, row_end, col_end };
+        let span = Span {
+            row_start: row_start + 1,
+            col_start: col_start + 1,
+            row_end: row_end + 1,
+            col_end: col_end + 1
+        };
         let len = start_len - self.cursor.as_str().len();
         return (span, len);
     }
