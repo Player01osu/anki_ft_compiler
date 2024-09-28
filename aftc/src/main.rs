@@ -1237,7 +1237,7 @@ fn sanitize_field(field: &str, ignore_newlines: bool, separator: char) -> Box<st
     } else {
         let mut field = String::new();
         let mut first_part = true;
-        for s_part in s_vec.iter().map(|s| s.trim()) {
+        for s_part in s_vec.iter().map(|s| s.trim()).filter(|s| !s.is_empty()) {
             if first_part {
                 first_part = false
             } else {
@@ -1245,6 +1245,7 @@ fn sanitize_field(field: &str, ignore_newlines: bool, separator: char) -> Box<st
             }
             field.push_str(s_part);
         }
+        field.push(' ');
         field.push_str(&s);
         field.push('"');
         field.into()
@@ -1643,4 +1644,40 @@ fn main() {
             exit(1);
         }
     }
+}
+
+#[test]
+fn test_sanitize_field0() {
+    let field = "first line\nsecond line";
+    let ignore_newlines = true;
+    let sanitized = sanitize_field(field, ignore_newlines, ';');
+    let expected = "\"first line second line\"".into();
+    assert_eq!(sanitized, expected);
+}
+
+#[test]
+fn test_sanitize_field1() {
+    let field = "first line\nsecond line";
+    let ignore_newlines = false;
+    let sanitized = sanitize_field(field, ignore_newlines, ';');
+    let expected = "\"first line<br>second line\"".into();
+    assert_eq!(sanitized, expected);
+}
+
+#[test]
+fn test_sanitize_field2() {
+    let field = "first line\nsecond line\n\nthird line";
+    let ignore_newlines = true;
+    let sanitized = sanitize_field(field, ignore_newlines, ';');
+    let expected = "\"first line second line third line\"".into();
+    assert_eq!(sanitized, expected);
+}
+
+#[test]
+fn test_sanitize_field3() {
+    let field = "first line\nsecond line\n\nthird line\nfourth line";
+    let ignore_newlines = true;
+    let sanitized = sanitize_field(field, ignore_newlines, ';');
+    let expected = "\"first line second line third line fourth line\"".into();
+    assert_eq!(sanitized, expected);
 }
