@@ -864,7 +864,7 @@ impl<'a> Parser<'a> {
                         hasher.update(start_span.row_end.to_le_bytes());
                         hasher.update(start_span.col_end.to_le_bytes());
                         let mut guid = String::new();
-                        for b in hasher.finalize() {
+                        for b in hasher.finalize()[..16].iter() {
                             guid.push_str(format!("{b:x}").as_str());
                         }
                         match write!(f, "{}", guid) {
