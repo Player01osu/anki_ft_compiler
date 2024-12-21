@@ -1403,7 +1403,7 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                             deck_set.insert(deck.clone());
                         }
                         None => {
-                            eprintln!("{path}:{}:{}:ERROR:\"deck\" metadata unset, set the deck before adding notes (ie: > deck = \"My Deck Here\")\n", node.span.row_start, node.span.col_start);
+                            eprintln!("{path}:{}:{}:ERROR:\"deck\" metadata unset, set the deck before adding notes (ie: > deck = \"My Deck Here\";)\n", node.span.row_start, node.span.col_start);
                             return Err(());
                         }
                     }
@@ -1531,6 +1531,19 @@ fn generate_outputs(paths: &[String], output_name: &str, options: CompilerOption
                 }
             }
         }
+    }
+
+    if num_notes == 0 {
+        eprintln!("No notes found; try the following:");
+        eprintln!("");
+        eprintln!("  Set a deck:");
+        eprintln!("> deck = \"My Deck Here\";");
+        eprintln!("");
+        eprintln!("  Set notetype:");
+        eprintln!("#[Some Notetype]");
+        eprintln!("");
+        eprintln!("  Write note contents separated by default separator ';'");
+        eprintln!("");
     }
 
     println!("Compilation information:");
